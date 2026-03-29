@@ -1,5 +1,11 @@
 import type { Device } from "@luna/shared-types";
 import { parseAgentRegisterMessage } from "@luna/protocol";
+import {
+  createServer,
+  type IncomingMessage,
+  type Server as HttpServer,
+  type ServerResponse
+} from "node:http";
 import type { AddressInfo } from "node:net";
 import { WebSocketServer } from "ws";
 
@@ -21,14 +27,30 @@ export const createLunaServer = (options: LunaServerOptions = {}): LunaServer =>
   const devices = new Map<string, Device>();
   const host = options.host ?? "127.0.0.1";
   let port = options.port ?? 0;
+  let httpServer: HttpServer | undefined;
   let webSocketServer: WebSocketServer | undefined;
 
-  const start = async (): Promise<void> => {
-    if (webSocketServer) {
+  const getRegisteredDevices = (): Device[] => Array.from(devices.values());
+
+  const handleRequest = (_request: IncomingMessage, response: ServerResponse): void => {
+    if (_request.method === "GET" && _request.url === "/devices") {
+      response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify(getRegisteredDevices()));
       return;
     }
 
-    webSocketServer = new WebSocketServer({ host, port });
+    response.writeHead(404, { "content-type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({ message: "Not Found" }));
+  };
+
+  const start = async (): Promise<void> => {
+    if (httpServer || webSocketServer) {
+      return;
+    }
+
+    httpServer = createServer(handleRequest);
+    webSocketServer = new WebSocketServer({ server: httpServer });
+
     webSocketServer.on("connection", (socket) => {
       socket.on("message", (rawMessage) => {
         const registerMessage = parseAgentRegisterMessage(rawMessage.toString());
@@ -44,43 +66,57 @@ export const createLunaServer = (options: LunaServerOptions = {}): LunaServer =>
     });
 
     await new Promise<void>((resolve, reject) => {
-      if (!webSocketServer) {
-        reject(new Error("WebSocket server is not initialized."));
+      if (!httpServer) {
+        reject(new Error("HTTP server is not initialized."));
         return;
       }
 
       const handleListening = () => {
-        webSocketServer?.off("error", handleError);
+        httpServer?.off("error", handleError);
         resolve();
       };
 
       const handleError = (error: Error) => {
-        webSocketServer?.off("listening", handleListening);
+        httpServer?.off("listening", handleListening);
         reject(error);
       };
 
-      webSocketServer.once("listening", handleListening);
-      webSocketServer.once("error", handleError);
+      httpServer.once("listening", handleListening);
+      httpServer.once("error", handleError);
+      httpServer.listen(port, host);
     });
 
-    const address = webSocketServer.address();
+    const address = httpServer.address();
     if (!address || typeof address === "string") {
-      throw new Error("WebSocket server did not expose a TCP address.");
+      throw new Error("HTTP server did not expose a TCP address.");
     }
 
     port = (address as AddressInfo).port;
   };
 
   const stop = async (): Promise<void> => {
-    if (!webSocketServer) {
+    if (!httpServer || !webSocketServer) {
       return;
     }
 
-    const currentServer = webSocketServer;
+    const currentHttpServer = httpServer;
+    const currentWebSocketServer = webSocketServer;
+    httpServer = undefined;
     webSocketServer = undefined;
 
     await new Promise<void>((resolve, reject) => {
-      currentServer.close((error) => {
+      currentWebSocketServer.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve();
+      });
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      currentHttpServer.close((error) => {
         if (error) {
           reject(error);
           return;
@@ -95,6 +131,6 @@ export const createLunaServer = (options: LunaServerOptions = {}): LunaServer =>
     start,
     stop,
     getPort: () => port,
-    getRegisteredDevices: () => Array.from(devices.values())
+    getRegisteredDevices
   };
 };

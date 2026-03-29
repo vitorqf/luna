@@ -222,7 +222,7 @@ Evitar:
 - server registra device em memória
 - teste de registro
 
-### Slice 2 — Listagem de Devices
+### Slice 2 — Listagem de Devices (Concluido)
 
 - endpoint REST `/devices`
 - web exibe lista
@@ -367,13 +367,13 @@ Para cada etapa:
 
 Começar pelo:
 
-→ Slice 2: Listagem de Devices
+→ Slice 3: Parser de Comando
 
 Foco:
 
-- endpoint REST `/devices`
-- leitura dos devices registrados
-- testes de leitura
+- parsing baseado em regras
+- suporte a frases simples
+- testes cobrindo parsing
 
 ---
 
