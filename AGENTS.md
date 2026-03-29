@@ -245,7 +245,7 @@ Evitar:
 - agent executa notificação local
 - testes de execução
 
-### Slice 6 — Open App
+### Slice 6 — Open App (Concluido)
 
 - agent abre app local
 - testes de execução
@@ -367,12 +367,13 @@ Para cada etapa:
 
 Começar pelo:
 
-→ Slice 6: Open App
+→ Slice 7: Histórico
 
 Foco:
 
-- agent abre app local
-- testes de execução
+- armazenar comandos em memória
+- endpoint de leitura
+- testes de persistência
 
 ---
 

@@ -21,6 +21,9 @@ export interface ConnectAgentInput {
   executeNotify?: (
     notification: LocalNotification
   ) => void | Promise<void>;
+  executeOpenApp?: (
+    openApp: LocalOpenApp
+  ) => void | Promise<void>;
 }
 
 export interface AgentConnection {
@@ -38,7 +41,12 @@ export interface LocalNotification {
   message: string;
 }
 
+export interface LocalOpenApp {
+  appName: string;
+}
+
 const NOTIFY_INTENT = "notify" as const;
+const OPEN_APP_INTENT = "open_app" as const;
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
@@ -56,10 +64,25 @@ const extractLocalNotification = (
   return { title, message };
 };
 
+const extractLocalOpenApp = (
+  params: Record<string, unknown>
+): LocalOpenApp | null => {
+  const appName = params.appName;
+  if (!isNonEmptyString(appName)) {
+    return null;
+  }
+
+  return { appName };
+};
+
 const executeLocalNotify = async (
   notification: LocalNotification
 ): Promise<void> => {
   console.info(`[luna][notify] ${notification.title}: ${notification.message}`);
+};
+
+const executeLocalOpenApp = async (openApp: LocalOpenApp): Promise<void> => {
+  console.info(`[luna][open_app] ${openApp.appName}`);
 };
 
 export const connectAgent = async (
@@ -67,6 +90,7 @@ export const connectAgent = async (
 ): Promise<AgentConnection> => {
   const socket = new WebSocket(input.serverUrl);
   const executeNotify = input.executeNotify ?? executeLocalNotify;
+  const executeOpenApp = input.executeOpenApp ?? executeLocalOpenApp;
 
   const sendSerializedMessage = async (
     serializedMessage: string
@@ -111,6 +135,11 @@ export const connectAgent = async (
           );
           if (notification) {
             await executeNotify(notification);
+          }
+        } else if (dispatchMessage.payload.intent === OPEN_APP_INTENT) {
+          const openApp = extractLocalOpenApp(dispatchMessage.payload.params);
+          if (openApp) {
+            await executeOpenApp(openApp);
           }
         }
 
