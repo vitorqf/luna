@@ -216,7 +216,7 @@ Evitar:
 - estrutura de pastas
 - scripts básicos
 
-### Slice 1 — Registro de Agent
+### Slice 1 — Registro de Agent (Concluido)
 
 - agent conecta via WebSocket
 - server registra device em memória
@@ -367,15 +367,13 @@ Para cada etapa:
 
 Começar pelo:
 
-→ Slice 0: Bootstrap do projeto
-
-Sem implementar lógica de negócio ainda.
+→ Slice 2: Listagem de Devices
 
 Foco:
 
-- estrutura
-- tooling
-- testes funcionando
+- endpoint REST `/devices`
+- leitura dos devices registrados
+- testes de leitura
 
 ---
 
