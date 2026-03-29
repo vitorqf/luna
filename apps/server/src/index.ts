@@ -4,14 +4,14 @@ import {
   createCommandDispatchMessage,
   parseAgentRegisterMessage,
   parseCommandAckMessage,
-  type CommandAckPayload
+  type CommandAckPayload,
 } from "@luna/protocol";
 import { randomUUID } from "node:crypto";
 import {
   createServer,
   type IncomingMessage,
   type Server as HttpServer,
-  type ServerResponse
+  type ServerResponse,
 } from "node:http";
 import type { AddressInfo } from "node:net";
 import { WebSocket, WebSocketServer } from "ws";
@@ -30,7 +30,7 @@ export interface LunaServer {
   getRegisteredDevices: () => Device[];
   getCommandHistory: () => Command[];
   dispatchCommand: (
-    input: DispatchCommandInput
+    input: DispatchCommandInput,
   ) => Promise<DispatchCommandAcknowledgement>;
 }
 
@@ -64,16 +64,37 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
+const CORS_ALLOW_ORIGIN = "*";
+const CORS_ALLOW_METHODS = "GET,POST,OPTIONS";
+const CORS_ALLOW_HEADERS = "content-type";
+
+const setCorsHeaders = (response: ServerResponse): void => {
+  response.setHeader("access-control-allow-origin", CORS_ALLOW_ORIGIN);
+  response.setHeader("access-control-allow-methods", CORS_ALLOW_METHODS);
+  response.setHeader("access-control-allow-headers", CORS_ALLOW_HEADERS);
+};
+
 const sendJson = (
   response: ServerResponse,
   statusCode: number,
-  payload: unknown
+  payload: unknown,
 ): void => {
-  response.writeHead(statusCode, { "content-type": "application/json; charset=utf-8" });
+  setCorsHeaders(response);
+  response.writeHead(statusCode, {
+    "content-type": "application/json; charset=utf-8",
+  });
   response.end(JSON.stringify(payload));
 };
 
-const readRawRequestBody = async (request: IncomingMessage): Promise<string> => {
+const sendNoContent = (response: ServerResponse): void => {
+  setCorsHeaders(response);
+  response.writeHead(204);
+  response.end();
+};
+
+const readRawRequestBody = async (
+  request: IncomingMessage,
+): Promise<string> => {
   const chunks: Buffer[] = [];
 
   for await (const chunk of request) {
@@ -83,7 +104,9 @@ const readRawRequestBody = async (request: IncomingMessage): Promise<string> => 
   return Buffer.concat(chunks).toString("utf-8");
 };
 
-export const createLunaServer = (options: LunaServerOptions = {}): LunaServer => {
+export const createLunaServer = (
+  options: LunaServerOptions = {},
+): LunaServer => {
   const devices = new Map<string, Device>();
   const commandHistory: Command[] = [];
   const deviceSockets = new Map<string, WebSocket>();
@@ -110,7 +133,7 @@ export const createLunaServer = (options: LunaServerOptions = {}): LunaServer =>
 
   const handleSubmitCommand = async (
     request: IncomingMessage,
-    response: ServerResponse
+    response: ServerResponse,
   ): Promise<void> => {
     let payload: unknown;
 
@@ -145,7 +168,7 @@ export const createLunaServer = (options: LunaServerOptions = {}): LunaServer =>
         rawText,
         targetDeviceId: targetDevice.id,
         intent: parsedCommand.intent,
-        params: parsedCommand.params
+        params: parsedCommand.params,
       });
 
       sendJson(response, 200, ack);
@@ -154,7 +177,15 @@ export const createLunaServer = (options: LunaServerOptions = {}): LunaServer =>
     }
   };
 
-  const handleRequest = (request: IncomingMessage, response: ServerResponse): void => {
+  const handleRequest = (
+    request: IncomingMessage,
+    response: ServerResponse,
+  ): void => {
+    if (request.method === "OPTIONS") {
+      sendNoContent(response);
+      return;
+    }
+
     if (request.method === "GET" && request.url === "/devices") {
       sendJson(response, 200, getRegisteredDevices());
       return;
@@ -203,7 +234,7 @@ export const createLunaServer = (options: LunaServerOptions = {}): LunaServer =>
           }
 
           const pendingAck = pendingCommandAcks.get(
-            commandAckMessage.payload.commandId
+            commandAckMessage.payload.commandId,
           );
           if (!pendingAck) {
             return;
@@ -222,19 +253,19 @@ export const createLunaServer = (options: LunaServerOptions = {}): LunaServer =>
             intent: pendingAck.intent,
             targetDeviceId: pendingAck.targetDeviceId,
             params: pendingAck.params,
-            status: commandAckMessage.payload.status
+            status: commandAckMessage.payload.status,
           });
           pendingAck.resolve({
             commandId: commandAckMessage.payload.commandId,
             targetDeviceId: pendingAck.targetDeviceId,
-            status: commandAckMessage.payload.status
+            status: commandAckMessage.payload.status,
           });
           return;
         }
 
         devices.set(registerMessage.payload.id, {
           ...registerMessage.payload,
-          status: "online"
+          status: "online",
         });
         deviceSockets.set(registerMessage.payload.id, socket);
         socketDeviceIds.set(socket, registerMessage.payload.id);
@@ -278,7 +309,7 @@ export const createLunaServer = (options: LunaServerOptions = {}): LunaServer =>
     for (const [commandId, pendingAck] of pendingCommandAcks.entries()) {
       clearTimeout(pendingAck.timeoutHandle);
       pendingAck.reject(
-        new Error(`Server stopped before ack for command ${commandId}.`)
+        new Error(`Server stopped before ack for command ${commandId}.`),
       );
       pendingCommandAcks.delete(commandId);
     }
@@ -312,7 +343,7 @@ export const createLunaServer = (options: LunaServerOptions = {}): LunaServer =>
   };
 
   const dispatchCommand = async (
-    input: DispatchCommandInput
+    input: DispatchCommandInput,
   ): Promise<DispatchCommandAcknowledgement> => {
     const socket = deviceSockets.get(input.targetDeviceId);
     if (!socket || socket.readyState !== WebSocket.OPEN) {
@@ -324,8 +355,8 @@ export const createLunaServer = (options: LunaServerOptions = {}): LunaServer =>
       createCommandDispatchMessage({
         commandId,
         intent: input.intent,
-        params: input.params
-      })
+        params: input.params,
+      }),
     );
 
     return new Promise<DispatchCommandAcknowledgement>((resolve, reject) => {
@@ -334,8 +365,8 @@ export const createLunaServer = (options: LunaServerOptions = {}): LunaServer =>
         pendingCommandAcks.delete(commandId);
         reject(
           new Error(
-            `Timed out waiting for ack from device ${input.targetDeviceId}.`
-          )
+            `Timed out waiting for ack from device ${input.targetDeviceId}.`,
+          ),
         );
       }, ackTimeoutMs);
 
@@ -346,7 +377,7 @@ export const createLunaServer = (options: LunaServerOptions = {}): LunaServer =>
         targetDeviceId: input.targetDeviceId,
         timeoutHandle,
         resolve,
-        reject
+        reject,
       });
 
       socket.send(serializedDispatchMessage, (error) => {
@@ -367,6 +398,6 @@ export const createLunaServer = (options: LunaServerOptions = {}): LunaServer =>
     getPort: () => port,
     getRegisteredDevices,
     getCommandHistory,
-    dispatchCommand
+    dispatchCommand,
   };
 };
