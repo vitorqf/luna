@@ -56,7 +56,7 @@ export const mockCommandHistory: CommandResult[] = [
   },
   {
     id: "cmd-003",
-    command: "Mostre uma notificação no Desktop Sala",
+    command: "Mostre uma notificacao no Desktop Sala",
     targetDevice: "Desktop Sala",
     targetDeviceId: "dev-002",
     status: "error",
@@ -94,6 +94,7 @@ export const commandPlaceholders = [
   "Abra o Spotify no Notebook 2",
   "Toque lo-fi no Notebook 2",
   "Aumente o volume do Notebook 2 para 50%",
-  "Mostre uma notificação no Mini PC",
+  'Notificar "Backup concluido" no Mini PC Homelab',
   "Desligue o Desktop Sala",
 ];
+

@@ -146,4 +146,80 @@ describe("slice 8 - command submit endpoint", () => {
       await server.stop();
     }
   });
+
+  it("parses notify phrase, dispatches notify and stores notify history in POST /commands", async () => {
+    const server = createLunaServer({ host: "127.0.0.1", port: 0 });
+    await server.start();
+
+    let agentConnection: { disconnect: () => Promise<void> } | undefined;
+    const executeNotify = vi.fn(async () => undefined);
+    const rawText = 'Notificar "Backup concluido" no Notebook 2';
+
+    try {
+      agentConnection = await connectAgent({
+        serverUrl: `ws://127.0.0.1:${server.getPort()}`,
+        device: {
+          id: "notebook-2",
+          name: "Notebook 2",
+          hostname: "notebook-2.local"
+        },
+        executeNotify
+      });
+
+      await waitForAssertion(() => {
+        expect(server.getRegisteredDevices()).toHaveLength(1);
+      });
+
+      const response = await fetch(`http://127.0.0.1:${server.getPort()}/commands`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          rawText
+        })
+      });
+
+      expect(response.status).toBe(200);
+      const payload = (await response.json()) as {
+        commandId: string;
+        targetDeviceId: string;
+        status: string;
+      };
+      expect(payload).toEqual({
+        commandId: expect.any(String),
+        targetDeviceId: "notebook-2",
+        status: "acknowledged"
+      });
+
+      expect(executeNotify).toHaveBeenCalledTimes(1);
+      expect(executeNotify).toHaveBeenCalledWith({
+        title: "Luna",
+        message: "Backup concluido"
+      });
+
+      const historyResponse = await fetch(
+        `http://127.0.0.1:${server.getPort()}/commands`
+      );
+      await expect(historyResponse.json()).resolves.toEqual([
+        {
+          id: payload.commandId,
+          rawText,
+          intent: "notify",
+          targetDeviceId: "notebook-2",
+          params: {
+            title: "Luna",
+            message: "Backup concluido"
+          },
+          status: "acknowledged"
+        }
+      ]);
+    } finally {
+      if (agentConnection) {
+        await agentConnection.disconnect();
+      }
+
+      await server.stop();
+    }
+  });
 });

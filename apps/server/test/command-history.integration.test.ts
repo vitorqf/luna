@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { connectAgent } from "../../agent/src/index";
 import { createLunaServer } from "../src/index";
 
@@ -30,6 +30,7 @@ describe("slice 7 - command history", () => {
     const server = createLunaServer({ host: "127.0.0.1", port: 0 });
     await server.start();
 
+    const executeNotify = vi.fn(async () => undefined);
     let agentConnection: { disconnect: () => Promise<void> } | undefined;
 
     try {
@@ -39,7 +40,8 @@ describe("slice 7 - command history", () => {
           id: "notebook-2",
           name: "Notebook 2",
           hostname: "notebook-2.local"
-        }
+        },
+        executeNotify
       });
 
       await waitForAssertion(() => {

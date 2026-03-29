@@ -66,7 +66,7 @@ export function CommandComposer({ onSubmit, isProcessing = false }: CommandCompo
           <button
             key={device}
             type="button"
-            onClick={() => setCommand(`Abra uma notificação no ${device}`)}
+            onClick={() => setCommand(`Notificar "Mensagem do Luna" no ${device}`)}
             className="text-xs px-3 py-1.5 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
           >
             {device}
@@ -76,3 +76,4 @@ export function CommandComposer({ onSubmit, isProcessing = false }: CommandCompo
     </div>
   );
 }
+

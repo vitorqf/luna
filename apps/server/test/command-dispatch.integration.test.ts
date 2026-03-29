@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { connectAgent, type ReceivedCommand } from "../../agent/src/index";
 import { createLunaServer } from "../src/index";
 
@@ -31,6 +31,7 @@ describe("slice 4 - command dispatch", () => {
     await server.start();
 
     const receivedCommands: ReceivedCommand[] = [];
+    const executeNotify = vi.fn(async () => undefined);
     let agentConnection: { disconnect: () => Promise<void> } | undefined;
 
     try {
@@ -41,6 +42,7 @@ describe("slice 4 - command dispatch", () => {
           name: "Notebook 2",
           hostname: "notebook-2.local"
         },
+        executeNotify,
         onCommand: (command) => {
           receivedCommands.push(command);
         }

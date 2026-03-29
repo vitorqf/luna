@@ -288,6 +288,13 @@ Evitar:
 - erro de launcher gera log estruturado no agent sem quebrar ack
 - testes unit·rios do launcher e integraÁ„o de ack em erro
 
+### Slice 13 - notify real no agent (Concluido)
+
+- parser suporta `Notificar "mensagem" no <device>` com `intent: notify`
+- launcher real de notify no Windows via PowerShell + toast WinRT
+- falhas de notify geram log estruturado no agent sem quebrar ack
+- testes unitarios de parser/launcher e integracao ponta a ponta via `POST /commands`
+
 ---
 
 ## 11. Crit√©rios de Conclus√£o por Slice
@@ -397,11 +404,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 12 concluido em 2026-03-29.
+Slice 13 concluido em 2026-03-29.
 
 Proximo passo recomendado:
 
--> Implementar a prÛxima intent real no agent via `POST /commands` (recomendado: notify), mantendo slices pequenos com TDD ponta a ponta
+-> Implementar a proxima intent real no agent via `POST /commands` (recomendado: set_volume), mantendo slices pequenos com TDD ponta a ponta
 
 ## 19. Observa√ß√£o Final
 
@@ -426,3 +433,4 @@ Antes de implementar qualquer c√≥digo, leia o AGENTS.md e me diga:
 S√≥ depois disso comece a implementar.
 
 Sempre atualize o AGENTS.md quando concluir um slice
+

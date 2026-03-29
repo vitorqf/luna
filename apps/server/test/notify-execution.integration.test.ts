@@ -76,4 +76,78 @@ describe("slice 5 - notify execution", () => {
       await server.stop();
     }
   });
+
+  it("keeps ack flow even when notify launcher fails", async () => {
+    const server = createLunaServer({ host: "127.0.0.1", port: 0 });
+    await server.start();
+
+    let agentConnection: { disconnect: () => Promise<void> } | undefined;
+    const onCommand = vi.fn(async () => undefined);
+    const executeNotify = vi.fn(async () => {
+      throw new Error("notify failure");
+    });
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    try {
+      agentConnection = await connectAgent({
+        serverUrl: `ws://127.0.0.1:${server.getPort()}`,
+        device: {
+          id: "notebook-2",
+          name: "Notebook 2",
+          hostname: "notebook-2.local"
+        },
+        onCommand,
+        executeNotify
+      });
+
+      await waitForAssertion(() => {
+        expect(server.getRegisteredDevices()).toHaveLength(1);
+      });
+
+      const ack = await server.dispatchCommand({
+        targetDeviceId: "notebook-2",
+        intent: "notify",
+        params: {
+          title: "Luna",
+          message: "Slice 13"
+        }
+      });
+
+      expect(ack).toMatchObject({
+        commandId: expect.any(String),
+        targetDeviceId: "notebook-2",
+        status: "acknowledged"
+      });
+
+      expect(onCommand).toHaveBeenCalledWith({
+        commandId: ack.commandId,
+        intent: "notify",
+        params: {
+          title: "Luna",
+          message: "Slice 13"
+        }
+      });
+
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "[luna][notify][error]",
+        expect.objectContaining({
+          commandId: ack.commandId,
+          title: "Luna",
+          message: "Slice 13",
+          reason: "notify failure"
+        })
+      );
+    } finally {
+      consoleErrorSpy.mockRestore();
+
+      if (agentConnection) {
+        await agentConnection.disconnect();
+      }
+
+      await server.stop();
+    }
+  });
 });
