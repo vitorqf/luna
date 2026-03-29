@@ -234,7 +234,7 @@ Evitar:
 - suporte a frases simples
 - testes cobrindo parsing
 
-### Slice 4 — Dispatch de Comando
+### Slice 4 — Dispatch de Comando (Concluido)
 
 - server envia comando ao agent
 - agent responde ack
@@ -367,13 +367,12 @@ Para cada etapa:
 
 Começar pelo:
 
-→ Slice 4: Dispatch de Comando
+→ Slice 5: Notify
 
 Foco:
 
-- server envia comando ao agent
-- agent responde ack
-- testes de fluxo
+- agent executa notificação local
+- testes de execução
 
 ---
 

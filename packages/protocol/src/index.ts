@@ -1,6 +1,9 @@
 export const protocolBootstrapReady = true;
 
 export const AGENT_REGISTER_MESSAGE_TYPE = "agent.register" as const;
+export const COMMAND_DISPATCH_MESSAGE_TYPE = "command.dispatch" as const;
+export const COMMAND_ACK_MESSAGE_TYPE = "command.ack" as const;
+export const COMMAND_ACK_STATUS_ACKNOWLEDGED = "acknowledged" as const;
 
 export interface AgentRegisterPayload {
   id: string;
@@ -13,6 +16,27 @@ export interface AgentRegisterMessage {
   payload: AgentRegisterPayload;
 }
 
+export interface CommandDispatchPayload {
+  commandId: string;
+  intent: string;
+  params: Record<string, unknown>;
+}
+
+export interface CommandDispatchMessage {
+  type: typeof COMMAND_DISPATCH_MESSAGE_TYPE;
+  payload: CommandDispatchPayload;
+}
+
+export interface CommandAckPayload {
+  commandId: string;
+  status: typeof COMMAND_ACK_STATUS_ACKNOWLEDGED;
+}
+
+export interface CommandAckMessage {
+  type: typeof COMMAND_ACK_MESSAGE_TYPE;
+  payload: CommandAckPayload;
+}
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
@@ -23,6 +47,20 @@ export const createAgentRegisterMessage = (
   payload: AgentRegisterPayload
 ): AgentRegisterMessage => ({
   type: AGENT_REGISTER_MESSAGE_TYPE,
+  payload
+});
+
+export const createCommandDispatchMessage = (
+  payload: CommandDispatchPayload
+): CommandDispatchMessage => ({
+  type: COMMAND_DISPATCH_MESSAGE_TYPE,
+  payload
+});
+
+export const createCommandAckMessage = (
+  payload: CommandAckPayload
+): CommandAckMessage => ({
+  type: COMMAND_ACK_MESSAGE_TYPE,
   payload
 });
 
@@ -48,12 +86,75 @@ export const isAgentRegisterMessage = (
   );
 };
 
+export const isCommandDispatchMessage = (
+  value: unknown
+): value is CommandDispatchMessage => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  if (value.type !== COMMAND_DISPATCH_MESSAGE_TYPE) {
+    return false;
+  }
+
+  if (!isRecord(value.payload)) {
+    return false;
+  }
+
+  return (
+    isNonEmptyString(value.payload.commandId) &&
+    isNonEmptyString(value.payload.intent) &&
+    isRecord(value.payload.params)
+  );
+};
+
+export const isCommandAckMessage = (value: unknown): value is CommandAckMessage => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  if (value.type !== COMMAND_ACK_MESSAGE_TYPE) {
+    return false;
+  }
+
+  if (!isRecord(value.payload)) {
+    return false;
+  }
+
+  return (
+    isNonEmptyString(value.payload.commandId) &&
+    value.payload.status === COMMAND_ACK_STATUS_ACKNOWLEDGED
+  );
+};
+
 export const parseAgentRegisterMessage = (
   serializedMessage: string
 ): AgentRegisterMessage | null => {
   try {
     const parsed = JSON.parse(serializedMessage) as unknown;
     return isAgentRegisterMessage(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+export const parseCommandDispatchMessage = (
+  serializedMessage: string
+): CommandDispatchMessage | null => {
+  try {
+    const parsed = JSON.parse(serializedMessage) as unknown;
+    return isCommandDispatchMessage(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+export const parseCommandAckMessage = (
+  serializedMessage: string
+): CommandAckMessage | null => {
+  try {
+    const parsed = JSON.parse(serializedMessage) as unknown;
+    return isCommandAckMessage(parsed) ? parsed : null;
   } catch {
     return null;
   }
