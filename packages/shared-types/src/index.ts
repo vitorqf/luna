@@ -12,3 +12,14 @@ export interface Device {
   hostname: string;
   status: DeviceStatus;
 }
+
+export type CommandStatus = "acknowledged";
+
+export interface Command {
+  id: string;
+  rawText: string;
+  intent: string;
+  targetDeviceId: string;
+  params: Record<string, unknown>;
+  status: CommandStatus;
+}

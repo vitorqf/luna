@@ -250,7 +250,7 @@ Evitar:
 - agent abre app local
 - testes de execução
 
-### Slice 7 — Histórico
+### Slice 7 � Hist�rico (Concluido)
 
 - armazenar comandos em memória
 - endpoint de leitura
@@ -365,17 +365,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Começar pelo:
+Slice 7 concluido em 2026-03-29.
 
-→ Slice 7: Histórico
+Proximo passo recomendado:
 
-Foco:
-
-- armazenar comandos em memória
-- endpoint de leitura
-- testes de persistência
-
----
+-> Validar o fluxo MVP ponta a ponta (comando + execucao + feedback no UI)
 
 ## 19. Observação Final
 

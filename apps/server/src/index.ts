@@ -1,4 +1,4 @@
-import type { Device } from "@luna/shared-types";
+import type { Command, Device } from "@luna/shared-types";
 import {
   createCommandDispatchMessage,
   parseAgentRegisterMessage,
@@ -27,12 +27,14 @@ export interface LunaServer {
   stop: () => Promise<void>;
   getPort: () => number;
   getRegisteredDevices: () => Device[];
+  getCommandHistory: () => Command[];
   dispatchCommand: (
     input: DispatchCommandInput
   ) => Promise<DispatchCommandAcknowledgement>;
 }
 
 export interface DispatchCommandInput {
+  rawText?: string;
   targetDeviceId: string;
   intent: string;
   params: Record<string, unknown>;
@@ -46,6 +48,9 @@ export interface DispatchCommandAcknowledgement {
 }
 
 interface PendingCommandAck {
+  rawText: string;
+  intent: string;
+  params: Record<string, unknown>;
   targetDeviceId: string;
   timeoutHandle: NodeJS.Timeout;
   resolve: (ack: DispatchCommandAcknowledgement) => void;
@@ -54,6 +59,7 @@ interface PendingCommandAck {
 
 export const createLunaServer = (options: LunaServerOptions = {}): LunaServer => {
   const devices = new Map<string, Device>();
+  const commandHistory: Command[] = [];
   const deviceSockets = new Map<string, WebSocket>();
   const socketDeviceIds = new WeakMap<WebSocket, string>();
   const pendingCommandAcks = new Map<string, PendingCommandAck>();
@@ -63,11 +69,18 @@ export const createLunaServer = (options: LunaServerOptions = {}): LunaServer =>
   let webSocketServer: WebSocketServer | undefined;
 
   const getRegisteredDevices = (): Device[] => Array.from(devices.values());
+  const getCommandHistory = (): Command[] => [...commandHistory];
 
   const handleRequest = (_request: IncomingMessage, response: ServerResponse): void => {
     if (_request.method === "GET" && _request.url === "/devices") {
       response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
       response.end(JSON.stringify(getRegisteredDevices()));
+      return;
+    }
+
+    if (_request.method === "GET" && _request.url === "/commands") {
+      response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify(getCommandHistory()));
       return;
     }
 
@@ -118,6 +131,14 @@ export const createLunaServer = (options: LunaServerOptions = {}): LunaServer =>
 
           pendingCommandAcks.delete(commandAckMessage.payload.commandId);
           clearTimeout(pendingAck.timeoutHandle);
+          commandHistory.push({
+            id: commandAckMessage.payload.commandId,
+            rawText: pendingAck.rawText,
+            intent: pendingAck.intent,
+            targetDeviceId: pendingAck.targetDeviceId,
+            params: pendingAck.params,
+            status: commandAckMessage.payload.status
+          });
           pendingAck.resolve({
             commandId: commandAckMessage.payload.commandId,
             targetDeviceId: pendingAck.targetDeviceId,
@@ -234,6 +255,9 @@ export const createLunaServer = (options: LunaServerOptions = {}): LunaServer =>
       }, ackTimeoutMs);
 
       pendingCommandAcks.set(commandId, {
+        rawText: input.rawText ?? "",
+        intent: input.intent,
+        params: input.params,
         targetDeviceId: input.targetDeviceId,
         timeoutHandle,
         resolve,
@@ -257,6 +281,7 @@ export const createLunaServer = (options: LunaServerOptions = {}): LunaServer =>
     stop,
     getPort: () => port,
     getRegisteredDevices,
+    getCommandHistory,
     dispatchCommand
   };
 };
