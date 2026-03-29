@@ -400,3 +400,5 @@ Antes de implementar qualquer código, leia o AGENTS.md e me diga:
 4. qual é o menor incremento funcional possível para concluir esse slice
 
 Só depois disso comece a implementar.
+
+Sempre atualize o AGENTS.md quando concluir um slice
