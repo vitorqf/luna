@@ -49,7 +49,7 @@ describe("slice 9 - agent runtime", () => {
         "utf-8"
       );
 
-      const targetEnv: NodeJS.ProcessEnv = {};
+      const targetEnv: Record<string, string | undefined> = {};
       loadAgentRuntimeEnvFromFile(envFilePath, targetEnv);
 
       expect(targetEnv.LUNA_AGENT_SERVER_URL).toBe("ws://127.0.0.1:4010");

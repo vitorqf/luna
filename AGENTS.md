@@ -281,6 +281,13 @@ Evitar:
 - runtime do agent carrega `.env` automaticamente no entrypoint
 - testes cobrindo leitura de variáveis a partir de arquivo `.env`
 
+### Slice 12 - open_app real no agent (Concluido)
+
+- launcher real para Windows usando `cmd /c start` com allowlist de aliases
+- aliases suportados: spotify, chrome, vscode (com sinônimos mapeados)
+- erro de launcher gera log estruturado no agent sem quebrar ack
+- testes unitários do launcher e integração de ack em erro
+
 ---
 
 ## 11. CritÃ©rios de ConclusÃ£o por Slice
@@ -390,11 +397,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 11 concluido em 2026-03-29.
+Slice 12 concluido em 2026-03-29.
 
 Proximo passo recomendado:
 
--> Expandir parser e dispatch para intents adicionais do MVP (notify, set_volume, play_media) no `POST /commands`, com cobertura de testes ponta a ponta
+-> Implementar a próxima intent real no agent via `POST /commands` (recomendado: notify), mantendo slices pequenos com TDD ponta a ponta
 
 ## 19. ObservaÃ§Ã£o Final
 

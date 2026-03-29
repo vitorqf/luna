@@ -74,4 +74,71 @@ describe("slice 6 - open app execution", () => {
       await server.stop();
     }
   });
+
+  it("keeps ack flow even when open_app launcher rejects unsupported apps", async () => {
+    const server = createLunaServer({ host: "127.0.0.1", port: 0 });
+    await server.start();
+
+    let agentConnection: { disconnect: () => Promise<void> } | undefined;
+    const onCommand = vi.fn(async () => undefined);
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    try {
+      agentConnection = await connectAgent({
+        serverUrl: `ws://127.0.0.1:${server.getPort()}`,
+        device: {
+          id: "notebook-2",
+          name: "Notebook 2",
+          hostname: "notebook-2.local"
+        },
+        onCommand
+      });
+
+      await waitForAssertion(() => {
+        expect(server.getRegisteredDevices()).toHaveLength(1);
+      });
+
+      const ack = await server.dispatchCommand({
+        targetDeviceId: "notebook-2",
+        intent: "open_app",
+        params: {
+          appName: "app-inexistente"
+        }
+      });
+
+      expect(ack).toMatchObject({
+        commandId: expect.any(String),
+        targetDeviceId: "notebook-2",
+        status: "acknowledged"
+      });
+
+      expect(onCommand).toHaveBeenCalledWith({
+        commandId: ack.commandId,
+        intent: "open_app",
+        params: {
+          appName: "app-inexistente"
+        }
+      });
+
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "[luna][open_app][error]",
+        expect.objectContaining({
+          commandId: ack.commandId,
+          appName: "app-inexistente",
+          reason: expect.any(String)
+        })
+      );
+    } finally {
+      consoleErrorSpy.mockRestore();
+
+      if (agentConnection) {
+        await agentConnection.disconnect();
+      }
+
+      await server.stop();
+    }
+  });
 });

@@ -20,7 +20,7 @@ describe("slice 9 - server runtime", () => {
         "utf-8"
       );
 
-      const targetEnv: NodeJS.ProcessEnv = {};
+      const targetEnv: Record<string, string | undefined> = {};
       loadServerRuntimeEnvFromFile(envFilePath, targetEnv);
 
       expect(targetEnv.LUNA_SERVER_HOST).toBe("0.0.0.0");

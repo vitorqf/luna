@@ -4,6 +4,7 @@ import {
   createCommandAckMessage,
   parseCommandDispatchMessage
 } from "@luna/protocol";
+import { createOpenAppLauncher } from "./open-app-launcher";
 import { WebSocket } from "ws";
 
 export const agentBootstrapReady = true;
@@ -81,8 +82,17 @@ const executeLocalNotify = async (
   console.info(`[luna][notify] ${notification.title}: ${notification.message}`);
 };
 
-const executeLocalOpenApp = async (openApp: LocalOpenApp): Promise<void> => {
-  console.info(`[luna][open_app] ${openApp.appName}`);
+const launchOpenApp = createOpenAppLauncher();
+
+const executeLocalOpenApp = async (openApp: LocalOpenApp): Promise<void> =>
+  launchOpenApp(openApp);
+
+const getErrorReason = (error: unknown): string => {
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+
+  return "Unknown open_app launcher error.";
 };
 
 export const connectAgent = async (
@@ -139,7 +149,15 @@ export const connectAgent = async (
         } else if (dispatchMessage.payload.intent === OPEN_APP_INTENT) {
           const openApp = extractLocalOpenApp(dispatchMessage.payload.params);
           if (openApp) {
-            await executeOpenApp(openApp);
+            try {
+              await executeOpenApp(openApp);
+            } catch (error) {
+              console.error("[luna][open_app][error]", {
+                commandId: dispatchMessage.payload.commandId,
+                appName: openApp.appName,
+                reason: getErrorReason(error)
+              });
+            }
           }
         }
 

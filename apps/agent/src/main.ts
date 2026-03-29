@@ -16,6 +16,8 @@ interface RuntimeLogger {
   error: (message: string) => void;
 }
 
+type RuntimeEnv = Record<string, string | undefined>;
+
 export interface AgentRuntimeConfig {
   serverUrl: string;
   device: AgentIdentity;
@@ -66,7 +68,7 @@ const isMainModule = (moduleUrl: string): boolean => {
 };
 
 export const parseAgentRuntimeConfig = (
-  env: NodeJS.ProcessEnv = process.env,
+  env: RuntimeEnv = process.env,
 ): AgentRuntimeConfig => ({
   serverUrl: parseServerUrl(env.LUNA_AGENT_SERVER_URL),
   device: {
@@ -81,7 +83,7 @@ export const parseAgentRuntimeConfig = (
 
 export const loadAgentRuntimeEnvFromFile = (
   envFilePath = ".env",
-  targetEnv: NodeJS.ProcessEnv = process.env,
+  targetEnv: RuntimeEnv = process.env,
 ): void => {
   loadDotEnv({
     path: envFilePath,
@@ -92,7 +94,7 @@ export const loadAgentRuntimeEnvFromFile = (
 };
 
 export const startAgentRuntimeFromEnv = async (
-  env: NodeJS.ProcessEnv = process.env,
+  env: RuntimeEnv = process.env,
   logger: RuntimeLogger = console,
 ): Promise<AgentConnection> => {
   const runtimeConfig = parseAgentRuntimeConfig(env);
@@ -110,7 +112,7 @@ export const startAgentRuntimeFromEnv = async (
 };
 
 export const runAgentMain = async (
-  env: NodeJS.ProcessEnv = process.env,
+  env: RuntimeEnv = process.env,
   logger: RuntimeLogger = console,
 ): Promise<void> => {
   const connection = await startAgentRuntimeFromEnv(env, logger);

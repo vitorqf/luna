@@ -10,6 +10,8 @@ interface RuntimeLogger {
   error: (message: string) => void;
 }
 
+type RuntimeEnv = Record<string, string | undefined>;
+
 export interface ServerRuntimeConfig {
   host: string;
   port: number;
@@ -54,7 +56,7 @@ const isMainModule = (moduleUrl: string): boolean => {
 };
 
 export const parseServerRuntimeConfig = (
-  env: NodeJS.ProcessEnv = process.env
+  env: RuntimeEnv = process.env
 ): ServerRuntimeConfig => ({
   host: parseHost(env.LUNA_SERVER_HOST),
   port: parsePort(env.LUNA_SERVER_PORT)
@@ -62,7 +64,7 @@ export const parseServerRuntimeConfig = (
 
 export const loadServerRuntimeEnvFromFile = (
   envFilePath = ".env",
-  targetEnv: NodeJS.ProcessEnv = process.env
+  targetEnv: RuntimeEnv = process.env
 ): void => {
   loadDotEnv({
     path: envFilePath,
@@ -73,7 +75,7 @@ export const loadServerRuntimeEnvFromFile = (
 };
 
 export const startServerRuntimeFromEnv = async (
-  env: NodeJS.ProcessEnv = process.env,
+  env: RuntimeEnv = process.env,
   logger: RuntimeLogger = console
 ): Promise<LunaServer> => {
   const runtimeConfig = parseServerRuntimeConfig(env);
@@ -88,7 +90,7 @@ export const startServerRuntimeFromEnv = async (
 };
 
 export const runServerMain = async (
-  env: NodeJS.ProcessEnv = process.env,
+  env: RuntimeEnv = process.env,
   logger: RuntimeLogger = console
 ): Promise<void> => {
   const server = await startServerRuntimeFromEnv(env, logger);
