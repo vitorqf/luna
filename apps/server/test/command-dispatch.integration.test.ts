@@ -116,7 +116,7 @@ describe("slice 4 - command dispatch", () => {
         commandId: expect.any(String),
         targetDeviceId: "notebook-2",
         status: "failed",
-        reason: "Unsupported intent: unknown_intent."
+        reason: "unsupported_intent"
       });
     } finally {
       if (agentConnection) {
@@ -159,7 +159,7 @@ describe("slice 4 - command dispatch", () => {
         commandId: expect.any(String),
         targetDeviceId: "notebook-2",
         status: "failed",
-        reason: "Invalid params for intent: notify."
+        reason: "invalid_params"
       });
     } finally {
       if (agentConnection) {

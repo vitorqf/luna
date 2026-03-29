@@ -14,6 +14,10 @@ export interface Device {
 }
 
 export type CommandStatus = "success" | "failed";
+export type CommandFailureReason =
+  | "invalid_params"
+  | "unsupported_intent"
+  | "execution_error";
 
 export type Command =
   | {
@@ -31,5 +35,5 @@ export type Command =
       targetDeviceId: string;
       params: Record<string, unknown>;
       status: "failed";
-      reason: string;
+      reason: CommandFailureReason;
     };

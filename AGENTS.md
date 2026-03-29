@@ -317,6 +317,14 @@ Evitar:
 - web mapeia `success`/`failed` corretamente e exibe `reason` quando houver
 - testes de protocolo, integracao server/agent, submit endpoint e web atualizados e verdes
 
+### Slice 17 - catalogo canonico de reason + UX de falha no web (Concluido)
+
+- `reason` de falha padronizado para: `invalid_params`, `unsupported_intent`, `execution_error`
+- agent envia apenas codigos canonicos no ack, mantendo detalhe tecnico no log local
+- web traduz codigos canonicos para mensagens amigaveis e aplica fallback para reason desconhecido/ausente
+- contratos de tipos (`protocol` e `shared-types`) tipados com uniao de reasons canonicos
+- testes de integracao server/agent, `POST /commands`, protocol e web atualizados e verdes
+
 ---
 
 ## 11. Critérios de Conclusão por Slice
@@ -426,11 +434,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 16 concluido em 2026-03-29.
+Slice 17 concluido em 2026-03-29.
 
 Proximo passo recomendado:
 
--> Validar em ambiente real o fluxo `success/failed` no UI para as 4 intents e padronizar catalogo de reasons para UX
+-> Introduzir telemetria basica de execucao por intent/device (contadores de sucesso/falha e ultimo reason) para observabilidade MVP
 
 ## 19. Observação Final
 

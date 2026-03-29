@@ -63,7 +63,7 @@ describe("dashboard data mapping", () => {
     ]);
   });
 
-  it("maps failed server commands with reason to error message", () => {
+  it("maps execution_error reason to friendly error message", () => {
     const commands: Command[] = [
       {
         id: "cmd-2",
@@ -74,7 +74,7 @@ describe("dashboard data mapping", () => {
           appName: "Spotify"
         },
         status: "failed",
-        reason: "open_app launcher failed"
+        reason: "execution_error"
       }
     ];
 
@@ -96,7 +96,120 @@ describe("dashboard data mapping", () => {
         targetDevice: "Notebook 2",
         targetDeviceId: "notebook-2",
         status: "error",
-        message: "open_app launcher failed",
+        message: "Falha ao executar no dispositivo.",
+        timestamp: "recent"
+      }
+    ]);
+  });
+
+  it("maps invalid_params and unsupported_intent reasons to friendly messages", () => {
+    const commands: Command[] = [
+      {
+        id: "cmd-3",
+        rawText: "Notificar Notebook 2",
+        intent: "notify",
+        targetDeviceId: "notebook-2",
+        params: {},
+        status: "failed",
+        reason: "invalid_params"
+      },
+      {
+        id: "cmd-4",
+        rawText: "Reiniciar Notebook 2",
+        intent: "restart",
+        targetDeviceId: "notebook-2",
+        params: {},
+        status: "failed",
+        reason: "unsupported_intent"
+      }
+    ];
+
+    const uiDevices = [
+      {
+        id: "notebook-2",
+        name: "Notebook 2",
+        type: "notebook",
+        status: "online",
+        capabilities: ["notify", "open_app", "set_volume", "play_media"],
+        lastSeen: "now"
+      }
+    ] as const;
+
+    expect(mapCommandsToUi(commands, uiDevices)).toEqual([
+      {
+        id: "cmd-4",
+        command: "Reiniciar Notebook 2",
+        targetDevice: "Notebook 2",
+        targetDeviceId: "notebook-2",
+        status: "error",
+        message: "Esse dispositivo não suporta este comando.",
+        timestamp: "recent"
+      },
+      {
+        id: "cmd-3",
+        command: "Notificar Notebook 2",
+        targetDevice: "Notebook 2",
+        targetDeviceId: "notebook-2",
+        status: "error",
+        message: "Parâmetros inválidos para executar o comando.",
+        timestamp: "recent"
+      }
+    ]);
+  });
+
+  it("falls back to raw reason when unknown, or default when missing", () => {
+    const commands: Command[] = [
+      {
+        id: "cmd-5",
+        rawText: "Abrir Spotify no Notebook 2",
+        intent: "open_app",
+        targetDeviceId: "notebook-2",
+        params: {
+          appName: "Spotify"
+        },
+        status: "failed",
+        reason: "custom_reason"
+      },
+      {
+        id: "cmd-6",
+        rawText: "Abrir Spotify no Notebook 2",
+        intent: "open_app",
+        targetDeviceId: "notebook-2",
+        params: {
+          appName: "Spotify"
+        },
+        status: "failed"
+      }
+    ];
+
+    const uiDevices = [
+      {
+        id: "notebook-2",
+        name: "Notebook 2",
+        type: "notebook",
+        status: "online",
+        capabilities: ["notify", "open_app", "set_volume", "play_media"],
+        lastSeen: "now"
+      }
+    ] as const;
+
+    expect(mapCommandsToUi(commands, uiDevices)).toEqual([
+      {
+        id: "cmd-6",
+        command: "Abrir Spotify no Notebook 2",
+        targetDevice: "Notebook 2",
+        targetDeviceId: "notebook-2",
+        status: "error",
+        message: "Falha na execução.",
+        timestamp: "recent"
+      },
+      {
+        id: "cmd-5",
+        command: "Abrir Spotify no Notebook 2",
+        targetDevice: "Notebook 2",
+        targetDeviceId: "notebook-2",
+        status: "error",
+        message: "custom_reason",
         timestamp: "recent"
       }
     ]);

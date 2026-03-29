@@ -116,7 +116,7 @@ describe("slice 15 - play media execution", () => {
         commandId: expect.any(String),
         targetDeviceId: "notebook-2",
         status: "failed",
-        reason: "play_media failure"
+        reason: "execution_error"
       });
 
       expect(onCommand).toHaveBeenCalledWith({

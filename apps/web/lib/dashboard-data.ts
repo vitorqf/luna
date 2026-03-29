@@ -8,6 +8,22 @@ const DEFAULT_CAPABILITIES: Device["capabilities"] = [
   "play_media"
 ];
 
+const reasonMessageByCode: Record<string, string> = {
+  invalid_params: "Parâmetros inválidos para executar o comando.",
+  unsupported_intent: "Esse dispositivo não suporta este comando.",
+  execution_error: "Falha ao executar no dispositivo."
+};
+
+const mapFailureReasonToMessage = (
+  reason: string | undefined
+): string => {
+  if (!reason) {
+    return "Falha na execução.";
+  }
+
+  return reasonMessageByCode[reason] ?? reason;
+};
+
 const inferDeviceType = (device: ServerDevice): Device["type"] => {
   const source = `${device.name} ${device.hostname}`.toLocaleLowerCase();
 
@@ -53,7 +69,7 @@ export const mapCommandsToUi = (
       message:
         command.status === "success"
           ? "Executed successfully"
-          : command.reason ?? "Execution failed",
+          : mapFailureReasonToMessage(command.reason),
       timestamp: "recent"
     }));
 };

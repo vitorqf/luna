@@ -29,7 +29,7 @@ describe("command ack message", () => {
       createCommandAckMessage({
         commandId: "cmd-2",
         status: COMMAND_ACK_STATUS_FAILED,
-        reason: "launcher failed"
+        reason: "execution_error"
       })
     );
 
@@ -38,7 +38,7 @@ describe("command ack message", () => {
       payload: {
         commandId: "cmd-2",
         status: "failed",
-        reason: "launcher failed"
+        reason: "execution_error"
       }
     });
   });

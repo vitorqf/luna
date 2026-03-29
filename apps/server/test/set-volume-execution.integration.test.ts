@@ -116,7 +116,7 @@ describe("slice 14 - set volume execution", () => {
         commandId: expect.any(String),
         targetDeviceId: "notebook-2",
         status: "failed",
-        reason: "set_volume failure"
+        reason: "execution_error"
       });
 
       expect(onCommand).toHaveBeenCalledWith({

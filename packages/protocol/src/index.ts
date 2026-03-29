@@ -5,6 +5,15 @@ export const COMMAND_DISPATCH_MESSAGE_TYPE = "command.dispatch" as const;
 export const COMMAND_ACK_MESSAGE_TYPE = "command.ack" as const;
 export const COMMAND_ACK_STATUS_SUCCESS = "success" as const;
 export const COMMAND_ACK_STATUS_FAILED = "failed" as const;
+export const COMMAND_ACK_REASON_INVALID_PARAMS = "invalid_params" as const;
+export const COMMAND_ACK_REASON_UNSUPPORTED_INTENT =
+  "unsupported_intent" as const;
+export const COMMAND_ACK_REASON_EXECUTION_ERROR = "execution_error" as const;
+
+export type CommandAckFailureReason =
+  | typeof COMMAND_ACK_REASON_INVALID_PARAMS
+  | typeof COMMAND_ACK_REASON_UNSUPPORTED_INTENT
+  | typeof COMMAND_ACK_REASON_EXECUTION_ERROR;
 
 export interface AgentRegisterPayload {
   id: string;
@@ -36,7 +45,7 @@ export type CommandAckPayload =
   | {
       commandId: string;
       status: typeof COMMAND_ACK_STATUS_FAILED;
-      reason: string;
+      reason: CommandAckFailureReason;
     };
 
 export interface CommandAckMessage {
@@ -137,7 +146,11 @@ export const isCommandAckMessage = (value: unknown): value is CommandAckMessage 
   }
 
   if (value.payload.status === COMMAND_ACK_STATUS_FAILED) {
-    return isNonEmptyString(value.payload.reason);
+    return (
+      value.payload.reason === COMMAND_ACK_REASON_INVALID_PARAMS ||
+      value.payload.reason === COMMAND_ACK_REASON_UNSUPPORTED_INTENT ||
+      value.payload.reason === COMMAND_ACK_REASON_EXECUTION_ERROR
+    );
   }
 
   return false;

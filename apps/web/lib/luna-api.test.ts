@@ -78,7 +78,7 @@ describe("luna api client", () => {
         commandId: "cmd-999",
         targetDeviceId: "notebook-2",
         status: "failed",
-        reason: "open_app launcher failed"
+        reason: "execution_error"
       })
     );
 
@@ -89,7 +89,7 @@ describe("luna api client", () => {
       commandId: "cmd-999",
       targetDeviceId: "notebook-2",
       status: "failed",
-      reason: "open_app launcher failed"
+      reason: "execution_error"
     });
   });
 

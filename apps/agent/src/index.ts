@@ -65,6 +65,11 @@ export interface LocalPlayMedia {
   mediaQuery: string;
 }
 
+type CanonicalFailureReason =
+  | "invalid_params"
+  | "unsupported_intent"
+  | "execution_error";
+
 const NOTIFY_INTENT = "notify" as const;
 const OPEN_APP_INTENT = "open_app" as const;
 const SET_VOLUME_INTENT = "set_volume" as const;
@@ -159,7 +164,7 @@ const createSuccessAckPayload = (commandId: string): CommandAckPayload => ({
 
 const createFailedAckPayload = (
   commandId: string,
-  reason: string
+  reason: CanonicalFailureReason
 ): CommandAckPayload => ({
   commandId,
   status: COMMAND_ACK_STATUS_FAILED,
@@ -222,7 +227,7 @@ export const connectAgent = async (
           if (!notification) {
             commandAckPayload = createFailedAckPayload(
               commandId,
-              "Invalid params for intent: notify."
+              "invalid_params"
             );
           } else {
             try {
@@ -235,7 +240,10 @@ export const connectAgent = async (
                 message: notification.message,
                 reason
               });
-              commandAckPayload = createFailedAckPayload(commandId, reason);
+              commandAckPayload = createFailedAckPayload(
+                commandId,
+                "execution_error"
+              );
             }
           }
         } else if (dispatchMessage.payload.intent === OPEN_APP_INTENT) {
@@ -243,7 +251,7 @@ export const connectAgent = async (
           if (!openApp) {
             commandAckPayload = createFailedAckPayload(
               commandId,
-              "Invalid params for intent: open_app."
+              "invalid_params"
             );
           } else {
             try {
@@ -255,7 +263,10 @@ export const connectAgent = async (
                 appName: openApp.appName,
                 reason
               });
-              commandAckPayload = createFailedAckPayload(commandId, reason);
+              commandAckPayload = createFailedAckPayload(
+                commandId,
+                "execution_error"
+              );
             }
           }
         } else if (dispatchMessage.payload.intent === SET_VOLUME_INTENT) {
@@ -263,7 +274,7 @@ export const connectAgent = async (
           if (!setVolume) {
             commandAckPayload = createFailedAckPayload(
               commandId,
-              "Invalid params for intent: set_volume."
+              "invalid_params"
             );
           } else {
             try {
@@ -275,7 +286,10 @@ export const connectAgent = async (
                 volumePercent: setVolume.volumePercent,
                 reason
               });
-              commandAckPayload = createFailedAckPayload(commandId, reason);
+              commandAckPayload = createFailedAckPayload(
+                commandId,
+                "execution_error"
+              );
             }
           }
         } else if (dispatchMessage.payload.intent === PLAY_MEDIA_INTENT) {
@@ -283,7 +297,7 @@ export const connectAgent = async (
           if (!playMedia) {
             commandAckPayload = createFailedAckPayload(
               commandId,
-              "Invalid params for intent: play_media."
+              "invalid_params"
             );
           } else {
             try {
@@ -295,13 +309,16 @@ export const connectAgent = async (
                 mediaQuery: playMedia.mediaQuery,
                 reason
               });
-              commandAckPayload = createFailedAckPayload(commandId, reason);
+              commandAckPayload = createFailedAckPayload(
+                commandId,
+                "execution_error"
+              );
             }
           }
         } else {
           commandAckPayload = createFailedAckPayload(
             commandId,
-            `Unsupported intent: ${dispatchMessage.payload.intent}.`
+            "unsupported_intent"
           );
         }
 

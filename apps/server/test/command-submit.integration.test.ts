@@ -145,7 +145,7 @@ describe("slice 8 - command submit endpoint", () => {
         commandId: expect.any(String),
         targetDeviceId: "notebook-2",
         status: "failed",
-        reason: "open_app launcher failed"
+        reason: "execution_error"
       });
 
       const historyResponse = await fetch(
@@ -161,7 +161,7 @@ describe("slice 8 - command submit endpoint", () => {
             appName: "Spotify"
           },
           status: "failed",
-          reason: "open_app launcher failed"
+          reason: "execution_error"
         }
       ]);
     } finally {

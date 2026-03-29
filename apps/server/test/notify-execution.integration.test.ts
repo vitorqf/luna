@@ -119,7 +119,7 @@ describe("slice 5 - notify execution", () => {
         commandId: expect.any(String),
         targetDeviceId: "notebook-2",
         status: "failed",
-        reason: "notify failure"
+        reason: "execution_error"
       });
 
       expect(onCommand).toHaveBeenCalledWith({
