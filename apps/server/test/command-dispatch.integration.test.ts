@@ -26,7 +26,7 @@ const waitForAssertion = async (
 };
 
 describe("slice 4 - command dispatch", () => {
-  it("dispatches a command to a connected agent and receives ack", async () => {
+  it("dispatches a command to a connected agent and receives success", async () => {
     const server = createLunaServer({ host: "127.0.0.1", port: 0 });
     await server.start();
 
@@ -75,7 +75,91 @@ describe("slice 4 - command dispatch", () => {
       expect(ack).toMatchObject({
         commandId: expect.any(String),
         targetDeviceId: "notebook-2",
-        status: "acknowledged"
+        status: "success"
+      });
+    } finally {
+      if (agentConnection) {
+        await agentConnection.disconnect();
+      }
+
+      await server.stop();
+    }
+  });
+
+  it("returns failed when intent is not supported by agent", async () => {
+    const server = createLunaServer({ host: "127.0.0.1", port: 0 });
+    await server.start();
+
+    let agentConnection: { disconnect: () => Promise<void> } | undefined;
+
+    try {
+      agentConnection = await connectAgent({
+        serverUrl: `ws://127.0.0.1:${server.getPort()}`,
+        device: {
+          id: "notebook-2",
+          name: "Notebook 2",
+          hostname: "notebook-2.local"
+        }
+      });
+
+      await waitForAssertion(() => {
+        expect(server.getRegisteredDevices()).toHaveLength(1);
+      });
+
+      const ack = await server.dispatchCommand({
+        targetDeviceId: "notebook-2",
+        intent: "unknown_intent",
+        params: {}
+      });
+
+      expect(ack).toMatchObject({
+        commandId: expect.any(String),
+        targetDeviceId: "notebook-2",
+        status: "failed",
+        reason: "Unsupported intent: unknown_intent."
+      });
+    } finally {
+      if (agentConnection) {
+        await agentConnection.disconnect();
+      }
+
+      await server.stop();
+    }
+  });
+
+  it("returns failed when params are invalid for a supported intent", async () => {
+    const server = createLunaServer({ host: "127.0.0.1", port: 0 });
+    await server.start();
+
+    let agentConnection: { disconnect: () => Promise<void> } | undefined;
+
+    try {
+      agentConnection = await connectAgent({
+        serverUrl: `ws://127.0.0.1:${server.getPort()}`,
+        device: {
+          id: "notebook-2",
+          name: "Notebook 2",
+          hostname: "notebook-2.local"
+        }
+      });
+
+      await waitForAssertion(() => {
+        expect(server.getRegisteredDevices()).toHaveLength(1);
+      });
+
+      const ack = await server.dispatchCommand({
+        targetDeviceId: "notebook-2",
+        intent: "notify",
+        params: {
+          title: "Luna"
+        }
+      });
+
+      expect(ack).toMatchObject({
+        commandId: expect.any(String),
+        targetDeviceId: "notebook-2",
+        status: "failed",
+        reason: "Invalid params for intent: notify."
       });
     } finally {
       if (agentConnection) {

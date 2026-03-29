@@ -49,8 +49,11 @@ export const mapCommandsToUi = (
       command: command.rawText,
       targetDevice: deviceNameById.get(command.targetDeviceId) ?? "Unknown device",
       targetDeviceId: command.targetDeviceId,
-      status: command.status === "acknowledged" ? "success" : "error",
-      message: command.status === "acknowledged" ? "Acknowledged by device" : "Execution failed",
+      status: command.status === "success" ? "success" : "error",
+      message:
+        command.status === "success"
+          ? "Executed successfully"
+          : command.reason ?? "Execution failed",
       timestamp: "recent"
     }));
 };

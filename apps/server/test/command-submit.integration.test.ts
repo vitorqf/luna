@@ -67,7 +67,7 @@ describe("slice 8 - command submit endpoint", () => {
       expect(payload).toEqual({
         commandId: expect.any(String),
         targetDeviceId: "notebook-2",
-        status: "acknowledged"
+        status: "success"
       });
 
       expect(executeOpenApp).toHaveBeenCalledTimes(1);
@@ -87,7 +87,81 @@ describe("slice 8 - command submit endpoint", () => {
           params: {
             appName: "Spotify"
           },
-          status: "acknowledged"
+          status: "success"
+        }
+      ]);
+    } finally {
+      if (agentConnection) {
+        await agentConnection.disconnect();
+      }
+
+      await server.stop();
+    }
+  });
+
+  it("returns failed status with reason when command execution fails", async () => {
+    const server = createLunaServer({ host: "127.0.0.1", port: 0 });
+    await server.start();
+
+    let agentConnection: { disconnect: () => Promise<void> } | undefined;
+    const executeOpenApp = vi.fn(async () => {
+      throw new Error("open_app launcher failed");
+    });
+    const rawText = "Abrir Spotify no Notebook 2";
+
+    try {
+      agentConnection = await connectAgent({
+        serverUrl: `ws://127.0.0.1:${server.getPort()}`,
+        device: {
+          id: "notebook-2",
+          name: "Notebook 2",
+          hostname: "notebook-2.local"
+        },
+        executeOpenApp
+      });
+
+      await waitForAssertion(() => {
+        expect(server.getRegisteredDevices()).toHaveLength(1);
+      });
+
+      const response = await fetch(`http://127.0.0.1:${server.getPort()}/commands`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          rawText
+        })
+      });
+
+      expect(response.status).toBe(200);
+      const payload = (await response.json()) as {
+        commandId: string;
+        targetDeviceId: string;
+        status: string;
+        reason?: string;
+      };
+      expect(payload).toEqual({
+        commandId: expect.any(String),
+        targetDeviceId: "notebook-2",
+        status: "failed",
+        reason: "open_app launcher failed"
+      });
+
+      const historyResponse = await fetch(
+        `http://127.0.0.1:${server.getPort()}/commands`
+      );
+      await expect(historyResponse.json()).resolves.toEqual([
+        {
+          id: payload.commandId,
+          rawText,
+          intent: "open_app",
+          targetDeviceId: "notebook-2",
+          params: {
+            appName: "Spotify"
+          },
+          status: "failed",
+          reason: "open_app launcher failed"
         }
       ]);
     } finally {
@@ -189,7 +263,7 @@ describe("slice 8 - command submit endpoint", () => {
       expect(payload).toEqual({
         commandId: expect.any(String),
         targetDeviceId: "notebook-2",
-        status: "acknowledged"
+        status: "success"
       });
 
       expect(executeNotify).toHaveBeenCalledTimes(1);
@@ -211,7 +285,7 @@ describe("slice 8 - command submit endpoint", () => {
             title: "Luna",
             message: "Backup concluido"
           },
-          status: "acknowledged"
+          status: "success"
         }
       ]);
     } finally {
@@ -265,7 +339,7 @@ describe("slice 8 - command submit endpoint", () => {
       expect(payload).toEqual({
         commandId: expect.any(String),
         targetDeviceId: "notebook-2",
-        status: "acknowledged"
+        status: "success"
       });
 
       expect(executeSetVolume).toHaveBeenCalledTimes(1);
@@ -285,7 +359,7 @@ describe("slice 8 - command submit endpoint", () => {
           params: {
             volumePercent: 50
           },
-          status: "acknowledged"
+          status: "success"
         }
       ]);
     } finally {
@@ -339,7 +413,7 @@ describe("slice 8 - command submit endpoint", () => {
       expect(payload).toEqual({
         commandId: expect.any(String),
         targetDeviceId: "notebook-2",
-        status: "acknowledged"
+        status: "success"
       });
 
       expect(executePlayMedia).toHaveBeenCalledTimes(1);
@@ -359,7 +433,7 @@ describe("slice 8 - command submit endpoint", () => {
           params: {
             mediaQuery: "lo-fi"
           },
-          status: "acknowledged"
+          status: "success"
         }
       ]);
     } finally {

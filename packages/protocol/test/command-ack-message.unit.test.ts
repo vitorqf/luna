@@ -1,0 +1,57 @@
+import { describe, expect, it } from "vitest";
+import {
+  COMMAND_ACK_STATUS_FAILED,
+  COMMAND_ACK_STATUS_SUCCESS,
+  createCommandAckMessage,
+  parseCommandAckMessage
+} from "../src/index";
+
+describe("command ack message", () => {
+  it("parses a success ack payload", () => {
+    const serialized = JSON.stringify(
+      createCommandAckMessage({
+        commandId: "cmd-1",
+        status: COMMAND_ACK_STATUS_SUCCESS
+      })
+    );
+
+    expect(parseCommandAckMessage(serialized)).toEqual({
+      type: "command.ack",
+      payload: {
+        commandId: "cmd-1",
+        status: "success"
+      }
+    });
+  });
+
+  it("parses a failed ack payload with reason", () => {
+    const serialized = JSON.stringify(
+      createCommandAckMessage({
+        commandId: "cmd-2",
+        status: COMMAND_ACK_STATUS_FAILED,
+        reason: "launcher failed"
+      })
+    );
+
+    expect(parseCommandAckMessage(serialized)).toEqual({
+      type: "command.ack",
+      payload: {
+        commandId: "cmd-2",
+        status: "failed",
+        reason: "launcher failed"
+      }
+    });
+  });
+
+  it("rejects failed ack payload without reason", () => {
+    const serialized = JSON.stringify({
+      type: "command.ack",
+      payload: {
+        commandId: "cmd-3",
+        status: "failed"
+      }
+    });
+
+    expect(parseCommandAckMessage(serialized)).toBeNull();
+  });
+});

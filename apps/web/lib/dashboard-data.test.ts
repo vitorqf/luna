@@ -35,7 +35,7 @@ describe("dashboard data mapping", () => {
         params: {
           appName: "Spotify"
         },
-        status: "acknowledged"
+        status: "success"
       }
     ];
 
@@ -57,7 +57,46 @@ describe("dashboard data mapping", () => {
         targetDevice: "Notebook 2",
         targetDeviceId: "notebook-2",
         status: "success",
-        message: "Acknowledged by device",
+        message: "Executed successfully",
+        timestamp: "recent"
+      }
+    ]);
+  });
+
+  it("maps failed server commands with reason to error message", () => {
+    const commands: Command[] = [
+      {
+        id: "cmd-2",
+        rawText: "Abrir Spotify no Notebook 2",
+        intent: "open_app",
+        targetDeviceId: "notebook-2",
+        params: {
+          appName: "Spotify"
+        },
+        status: "failed",
+        reason: "open_app launcher failed"
+      }
+    ];
+
+    const uiDevices = [
+      {
+        id: "notebook-2",
+        name: "Notebook 2",
+        type: "notebook",
+        status: "online",
+        capabilities: ["notify", "open_app", "set_volume", "play_media"],
+        lastSeen: "now"
+      }
+    ] as const;
+
+    expect(mapCommandsToUi(commands, uiDevices)).toEqual([
+      {
+        id: "cmd-2",
+        command: "Abrir Spotify no Notebook 2",
+        targetDevice: "Notebook 2",
+        targetDeviceId: "notebook-2",
+        status: "error",
+        message: "open_app launcher failed",
         timestamp: "recent"
       }
     ]);
@@ -88,7 +127,7 @@ describe("dashboard data mapping", () => {
         targetDevice: "Notebook 2",
         targetDeviceId: "notebook-2",
         status: "success",
-        message: "Acknowledged by device",
+        message: "Executed successfully",
         timestamp: "recent"
       },
       {

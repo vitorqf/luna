@@ -60,7 +60,7 @@ describe("slice 5 - notify execution", () => {
       expect(ack).toMatchObject({
         commandId: expect.any(String),
         targetDeviceId: "notebook-2",
-        status: "acknowledged"
+        status: "success"
       });
 
       expect(executeNotify).toHaveBeenCalledTimes(1);
@@ -118,7 +118,8 @@ describe("slice 5 - notify execution", () => {
       expect(ack).toMatchObject({
         commandId: expect.any(String),
         targetDeviceId: "notebook-2",
-        status: "acknowledged"
+        status: "failed",
+        reason: "notify failure"
       });
 
       expect(onCommand).toHaveBeenCalledWith({

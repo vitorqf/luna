@@ -59,7 +59,7 @@ describe("slice 6 - open app execution", () => {
       expect(ack).toMatchObject({
         commandId: expect.any(String),
         targetDeviceId: "notebook-2",
-        status: "acknowledged"
+        status: "success"
       });
 
       expect(executeOpenApp).toHaveBeenCalledTimes(1);
@@ -111,7 +111,8 @@ describe("slice 6 - open app execution", () => {
       expect(ack).toMatchObject({
         commandId: expect.any(String),
         targetDeviceId: "notebook-2",
-        status: "acknowledged"
+        status: "failed",
+        reason: expect.any(String)
       });
 
       expect(onCommand).toHaveBeenCalledWith({

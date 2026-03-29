@@ -3,7 +3,8 @@ export const protocolBootstrapReady = true;
 export const AGENT_REGISTER_MESSAGE_TYPE = "agent.register" as const;
 export const COMMAND_DISPATCH_MESSAGE_TYPE = "command.dispatch" as const;
 export const COMMAND_ACK_MESSAGE_TYPE = "command.ack" as const;
-export const COMMAND_ACK_STATUS_ACKNOWLEDGED = "acknowledged" as const;
+export const COMMAND_ACK_STATUS_SUCCESS = "success" as const;
+export const COMMAND_ACK_STATUS_FAILED = "failed" as const;
 
 export interface AgentRegisterPayload {
   id: string;
@@ -27,10 +28,16 @@ export interface CommandDispatchMessage {
   payload: CommandDispatchPayload;
 }
 
-export interface CommandAckPayload {
-  commandId: string;
-  status: typeof COMMAND_ACK_STATUS_ACKNOWLEDGED;
-}
+export type CommandAckPayload =
+  | {
+      commandId: string;
+      status: typeof COMMAND_ACK_STATUS_SUCCESS;
+    }
+  | {
+      commandId: string;
+      status: typeof COMMAND_ACK_STATUS_FAILED;
+      reason: string;
+    };
 
 export interface CommandAckMessage {
   type: typeof COMMAND_ACK_MESSAGE_TYPE;
@@ -121,10 +128,19 @@ export const isCommandAckMessage = (value: unknown): value is CommandAckMessage 
     return false;
   }
 
-  return (
-    isNonEmptyString(value.payload.commandId) &&
-    value.payload.status === COMMAND_ACK_STATUS_ACKNOWLEDGED
-  );
+  if (!isNonEmptyString(value.payload.commandId)) {
+    return false;
+  }
+
+  if (value.payload.status === COMMAND_ACK_STATUS_SUCCESS) {
+    return !("reason" in value.payload);
+  }
+
+  if (value.payload.status === COMMAND_ACK_STATUS_FAILED) {
+    return isNonEmptyString(value.payload.reason);
+  }
+
+  return false;
 };
 
 export const parseAgentRegisterMessage = (

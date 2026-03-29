@@ -13,13 +13,23 @@ export interface Device {
   status: DeviceStatus;
 }
 
-export type CommandStatus = "acknowledged";
+export type CommandStatus = "success" | "failed";
 
-export interface Command {
-  id: string;
-  rawText: string;
-  intent: string;
-  targetDeviceId: string;
-  params: Record<string, unknown>;
-  status: CommandStatus;
-}
+export type Command =
+  | {
+      id: string;
+      rawText: string;
+      intent: string;
+      targetDeviceId: string;
+      params: Record<string, unknown>;
+      status: "success";
+    }
+  | {
+      id: string;
+      rawText: string;
+      intent: string;
+      targetDeviceId: string;
+      params: Record<string, unknown>;
+      status: "failed";
+      reason: string;
+    };

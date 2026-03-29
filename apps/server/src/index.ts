@@ -46,6 +46,7 @@ export interface DispatchCommandAcknowledgement {
   commandId: string;
   targetDeviceId: string;
   status: CommandAckPayload["status"];
+  reason?: string;
 }
 
 interface PendingCommandAck {
@@ -247,18 +248,37 @@ export const createLunaServer = (
 
           pendingCommandAcks.delete(commandAckMessage.payload.commandId);
           clearTimeout(pendingAck.timeoutHandle);
+          if (commandAckMessage.payload.status === "failed") {
+            commandHistory.push({
+              id: commandAckMessage.payload.commandId,
+              rawText: pendingAck.rawText,
+              intent: pendingAck.intent,
+              targetDeviceId: pendingAck.targetDeviceId,
+              params: pendingAck.params,
+              status: "failed",
+              reason: commandAckMessage.payload.reason,
+            });
+            pendingAck.resolve({
+              commandId: commandAckMessage.payload.commandId,
+              targetDeviceId: pendingAck.targetDeviceId,
+              status: "failed",
+              reason: commandAckMessage.payload.reason,
+            });
+            return;
+          }
+
           commandHistory.push({
             id: commandAckMessage.payload.commandId,
             rawText: pendingAck.rawText,
             intent: pendingAck.intent,
             targetDeviceId: pendingAck.targetDeviceId,
             params: pendingAck.params,
-            status: commandAckMessage.payload.status,
+            status: "success",
           });
           pendingAck.resolve({
             commandId: commandAckMessage.payload.commandId,
             targetDeviceId: pendingAck.targetDeviceId,
-            status: commandAckMessage.payload.status,
+            status: "success",
           });
           return;
         }

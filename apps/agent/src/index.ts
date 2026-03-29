@@ -1,8 +1,10 @@
 import {
-  COMMAND_ACK_STATUS_ACKNOWLEDGED,
+  COMMAND_ACK_STATUS_FAILED,
+  COMMAND_ACK_STATUS_SUCCESS,
   createAgentRegisterMessage,
   createCommandAckMessage,
-  parseCommandDispatchMessage
+  parseCommandDispatchMessage,
+  type CommandAckPayload
 } from "@luna/protocol";
 import { createNotifyLauncher } from "./notify-launcher";
 import { createOpenAppLauncher } from "./open-app-launcher";
@@ -150,6 +152,20 @@ const getErrorReason = (error: unknown): string => {
   return "Unknown launcher error.";
 };
 
+const createSuccessAckPayload = (commandId: string): CommandAckPayload => ({
+  commandId,
+  status: COMMAND_ACK_STATUS_SUCCESS
+});
+
+const createFailedAckPayload = (
+  commandId: string,
+  reason: string
+): CommandAckPayload => ({
+  commandId,
+  status: COMMAND_ACK_STATUS_FAILED,
+  reason
+});
+
 export const connectAgent = async (
   input: ConnectAgentInput
 ): Promise<AgentConnection> => {
@@ -195,66 +211,102 @@ export const connectAgent = async (
     }
 
     void (async () => {
+      const commandId = dispatchMessage.payload.commandId;
+      let commandAckPayload = createSuccessAckPayload(commandId);
+
       try {
         if (dispatchMessage.payload.intent === NOTIFY_INTENT) {
           const notification = extractLocalNotification(
             dispatchMessage.payload.params
           );
-          if (notification) {
+          if (!notification) {
+            commandAckPayload = createFailedAckPayload(
+              commandId,
+              "Invalid params for intent: notify."
+            );
+          } else {
             try {
               await executeNotify(notification);
             } catch (error) {
+              const reason = getErrorReason(error);
               console.error("[luna][notify][error]", {
-                commandId: dispatchMessage.payload.commandId,
+                commandId,
                 title: notification.title,
                 message: notification.message,
-                reason: getErrorReason(error)
+                reason
               });
+              commandAckPayload = createFailedAckPayload(commandId, reason);
             }
           }
         } else if (dispatchMessage.payload.intent === OPEN_APP_INTENT) {
           const openApp = extractLocalOpenApp(dispatchMessage.payload.params);
-          if (openApp) {
+          if (!openApp) {
+            commandAckPayload = createFailedAckPayload(
+              commandId,
+              "Invalid params for intent: open_app."
+            );
+          } else {
             try {
               await executeOpenApp(openApp);
             } catch (error) {
+              const reason = getErrorReason(error);
               console.error("[luna][open_app][error]", {
-                commandId: dispatchMessage.payload.commandId,
+                commandId,
                 appName: openApp.appName,
-                reason: getErrorReason(error)
+                reason
               });
+              commandAckPayload = createFailedAckPayload(commandId, reason);
             }
           }
         } else if (dispatchMessage.payload.intent === SET_VOLUME_INTENT) {
           const setVolume = extractLocalSetVolume(dispatchMessage.payload.params);
-          if (setVolume) {
+          if (!setVolume) {
+            commandAckPayload = createFailedAckPayload(
+              commandId,
+              "Invalid params for intent: set_volume."
+            );
+          } else {
             try {
               await executeSetVolume(setVolume);
             } catch (error) {
+              const reason = getErrorReason(error);
               console.error("[luna][set_volume][error]", {
-                commandId: dispatchMessage.payload.commandId,
+                commandId,
                 volumePercent: setVolume.volumePercent,
-                reason: getErrorReason(error)
+                reason
               });
+              commandAckPayload = createFailedAckPayload(commandId, reason);
             }
           }
         } else if (dispatchMessage.payload.intent === PLAY_MEDIA_INTENT) {
           const playMedia = extractLocalPlayMedia(dispatchMessage.payload.params);
-          if (playMedia) {
+          if (!playMedia) {
+            commandAckPayload = createFailedAckPayload(
+              commandId,
+              "Invalid params for intent: play_media."
+            );
+          } else {
             try {
               await executePlayMedia(playMedia);
             } catch (error) {
+              const reason = getErrorReason(error);
               console.error("[luna][play_media][error]", {
-                commandId: dispatchMessage.payload.commandId,
+                commandId,
                 mediaQuery: playMedia.mediaQuery,
-                reason: getErrorReason(error)
+                reason
               });
+              commandAckPayload = createFailedAckPayload(commandId, reason);
             }
           }
+        } else {
+          commandAckPayload = createFailedAckPayload(
+            commandId,
+            `Unsupported intent: ${dispatchMessage.payload.intent}.`
+          );
         }
 
         await input.onCommand?.({
-          commandId: dispatchMessage.payload.commandId,
+          commandId,
           intent: dispatchMessage.payload.intent,
           params: dispatchMessage.payload.params
         });
@@ -265,10 +317,7 @@ export const connectAgent = async (
 
         await sendSerializedMessage(
           JSON.stringify(
-            createCommandAckMessage({
-              commandId: dispatchMessage.payload.commandId,
-              status: COMMAND_ACK_STATUS_ACKNOWLEDGED
-            })
+            createCommandAckMessage(commandAckPayload)
           )
         );
       }

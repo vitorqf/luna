@@ -49,7 +49,7 @@ describe("luna api client", () => {
         makeJsonResponse({
           commandId: "cmd-123",
           targetDeviceId: "notebook-2",
-          status: "acknowledged"
+          status: "success"
         })
       );
 
@@ -68,7 +68,28 @@ describe("luna api client", () => {
     expect(ack).toEqual({
       commandId: "cmd-123",
       targetDeviceId: "notebook-2",
-      status: "acknowledged"
+      status: "success"
+    });
+  });
+
+  it("returns failed command result payload from POST /commands", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      makeJsonResponse({
+        commandId: "cmd-999",
+        targetDeviceId: "notebook-2",
+        status: "failed",
+        reason: "open_app launcher failed"
+      })
+    );
+
+    const client = createLunaApiClient("http://127.0.0.1:4444");
+    const ack = await client.submitCommand("Abrir Spotify no Notebook 2");
+
+    expect(ack).toEqual({
+      commandId: "cmd-999",
+      targetDeviceId: "notebook-2",
+      status: "failed",
+      reason: "open_app launcher failed"
     });
   });
 

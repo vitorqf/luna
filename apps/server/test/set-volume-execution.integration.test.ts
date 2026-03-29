@@ -59,7 +59,7 @@ describe("slice 14 - set volume execution", () => {
       expect(ack).toMatchObject({
         commandId: expect.any(String),
         targetDeviceId: "notebook-2",
-        status: "acknowledged"
+        status: "success"
       });
 
       expect(executeSetVolume).toHaveBeenCalledTimes(1);
@@ -115,7 +115,8 @@ describe("slice 14 - set volume execution", () => {
       expect(ack).toMatchObject({
         commandId: expect.any(String),
         targetDeviceId: "notebook-2",
-        status: "acknowledged"
+        status: "failed",
+        reason: "set_volume failure"
       });
 
       expect(onCommand).toHaveBeenCalledWith({

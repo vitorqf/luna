@@ -3,7 +3,8 @@ import type { Command, Device } from "@luna/shared-types";
 export interface SubmitCommandAck {
   commandId: string;
   targetDeviceId: string;
-  status: "acknowledged";
+  status: "success" | "failed";
+  reason?: string;
 }
 
 const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, "");

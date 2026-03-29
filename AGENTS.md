@@ -309,6 +309,14 @@ Evitar:
 - falhas de play_media geram log estruturado no agent sem quebrar ack
 - testes unitarios do launcher/parser e integracao ponta a ponta via `POST /commands`
 
+### Slice 16 - resultado real de execucao no fluxo completo (Concluido)
+
+- `command.ack` agora representa resultado final com `status: success | failed`
+- falhas incluem `reason` obrigatorio no protocolo, no `POST /commands` e no historico
+- agent envia `failed` para erro de launcher, params invalidos e intent nao suportada
+- web mapeia `success`/`failed` corretamente e exibe `reason` quando houver
+- testes de protocolo, integracao server/agent, submit endpoint e web atualizados e verdes
+
 ---
 
 ## 11. Critérios de Conclusão por Slice
@@ -418,11 +426,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 15 concluido em 2026-03-29.
+Slice 16 concluido em 2026-03-29.
 
 Proximo passo recomendado:
 
--> Validar o MVP ponta a ponta em ambiente real (2 devices + 4 intents) e definir proximo hardening de feedback de erro
+-> Validar em ambiente real o fluxo `success/failed` no UI para as 4 intents e padronizar catalogo de reasons para UX
 
 ## 19. Observação Final
 

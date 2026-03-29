@@ -59,7 +59,7 @@ describe("slice 15 - play media execution", () => {
       expect(ack).toMatchObject({
         commandId: expect.any(String),
         targetDeviceId: "notebook-2",
-        status: "acknowledged"
+        status: "success"
       });
 
       expect(executePlayMedia).toHaveBeenCalledTimes(1);
@@ -115,7 +115,8 @@ describe("slice 15 - play media execution", () => {
       expect(ack).toMatchObject({
         commandId: expect.any(String),
         targetDeviceId: "notebook-2",
-        status: "acknowledged"
+        status: "failed",
+        reason: "play_media failure"
       });
 
       expect(onCommand).toHaveBeenCalledWith({

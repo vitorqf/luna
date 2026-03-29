@@ -58,7 +58,7 @@ describe("slice 7 - command history", () => {
         }
       });
 
-      expect(ack.status).toBe("acknowledged");
+      expect(ack.status).toBe("success");
 
       const response = await fetch(
         `http://127.0.0.1:${server.getPort()}/commands`
@@ -75,7 +75,7 @@ describe("slice 7 - command history", () => {
             title: "Luna",
             message: "Slice 7"
           },
-          status: "acknowledged"
+          status: "success"
         }
       ]);
     } finally {
