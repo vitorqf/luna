@@ -19,43 +19,43 @@ O objetivo do MVP é validar o fluxo principal:
 
 ### Interfaces
 
-* Chat web simples
+- Chat web simples
 
 ### Componentes
 
-* Luna Server (backend central)
-* Luna Web (interface)
-* Luna Agent (rodando nos dispositivos)
-* Packages compartilhados
+- Luna Server (backend central)
+- Luna Web (interface)
+- Luna Agent (rodando nos dispositivos)
+- Packages compartilhados
 
 ### Comandos suportados (inicial)
 
-* open_app
-* notify
-* set_volume
-* play_media
+- open_app
+- notify
+- set_volume
+- play_media
 
 ### Capacidades iniciais do sistema
 
-* Registro de dispositivos (agents)
-* Comunicação server ↔ agent
-* Parser simples baseado em regras
-* Execução de comandos básicos
-* Feedback de sucesso/erro
-* Histórico básico de comandos
+- Registro de dispositivos (agents)
+- Comunicação server ↔ agent
+- Parser simples baseado em regras
+- Execução de comandos básicos
+- Feedback de sucesso/erro
+- Histórico básico de comandos
 
 ---
 
 ## 3. Fora do Escopo (MVP)
 
-* Voz (STT/TTS)
-* Descoberta automática de dispositivos na rede
-* Integrações complexas (Home Assistant, MQTT, etc.)
-* Multiusuário
-* Autenticação avançada
-* Controle de permissões
-* Alta disponibilidade
-* Execução distribuída complexa
+- Voz (STT/TTS)
+- Descoberta automática de dispositivos na rede
+- Integrações complexas (Home Assistant, MQTT, etc.)
+- Multiusuário
+- Autenticação avançada
+- Controle de permissões
+- Alta disponibilidade
+- Execução distribuída complexa
 
 ---
 
@@ -79,34 +79,34 @@ luna/
 
 #### server
 
-* API REST
-* WebSocket gateway
-* Registro de devices
-* Orquestração de comandos
+- API REST
+- WebSocket gateway
+- Registro de devices
+- Orquestração de comandos
 
 #### web
 
-* UI de chat
-* Listagem de devices
-* Visualização de histórico
+- UI de chat
+- Listagem de devices
+- Visualização de histórico
 
 #### agent
 
-* Conexão com server
-* Execução de comandos locais
-* Reporte de status
+- Conexão com server
+- Execução de comandos locais
+- Reporte de status
 
 #### shared-types
 
-* Tipos compartilhados
+- Tipos compartilhados
 
 #### protocol
 
-* Contratos de mensagens (WS)
+- Contratos de mensagens (WS)
 
 #### command-parser
 
-* Regras de parsing de linguagem natural
+- Regras de parsing de linguagem natural
 
 ---
 
@@ -114,47 +114,47 @@ luna/
 
 ### Backend
 
-* Node.js
-* TypeScript
-* NestJS
-* WebSocket
-* REST
-* Prisma (posterior)
-* PostgreSQL (posterior)
+- Node.js
+- TypeScript
+- NestJS
+- WebSocket
+- REST
+- Prisma (posterior)
+- PostgreSQL (posterior)
 
 ### Frontend
 
-* Next.js
-* TypeScript
-* React
-* TanStack Query
+- Next.js
+- TypeScript
+- React
+- TanStack Query
 
 ### Agent
 
-* Node.js
-* TypeScript
+- Node.js
+- TypeScript
 
 ### Testes
 
-* Vitest (preferencial)
+- Vitest (preferencial)
   ou
-* Jest (aceitável)
+- Jest (aceitável)
 
 Critérios:
 
-* rápido
-* simples
-* suporte a monorepo
+- rápido
+- simples
+- suporte a monorepo
 
 ---
 
 ## 6. Convenções de Código
 
-* TypeScript estrito
-* Funções pequenas e puras sempre que possível
-* Evitar classes desnecessárias no início
-* Preferir composição sobre abstração prematura
-* Nomear baseado em intenção, não implementação
+- TypeScript estrito
+- Funções pequenas e puras sempre que possível
+- Evitar classes desnecessárias no início
+- Preferir composição sobre abstração prematura
+- Nomear baseado em intenção, não implementação
 
 ---
 
@@ -162,15 +162,15 @@ Critérios:
 
 ### Tipos de teste usados
 
-* Unitários (principal)
-* Integração leve (quando necessário)
+- Unitários (principal)
+- Integração leve (quando necessário)
 
 ### Regras
 
-* Todo comportamento novo deve ter teste
-* Testes devem ser legíveis e descritivos
-* Evitar mocks excessivos no início
-* Priorizar testes de comportamento
+- Todo comportamento novo deve ter teste
+- Testes devem ser legíveis e descritivos
+- Evitar mocks excessivos no início
+- Priorizar testes de comportamento
 
 ---
 
@@ -194,15 +194,15 @@ A aplicação deve evoluir em slices verticais pequenos.
 
 Cada slice deve:
 
-* ser funcional
-* ser testado
-* entregar valor observável
+- ser funcional
+- ser testado
+- entregar valor observável
 
 Evitar:
 
-* criar estruturas genéricas antecipadamente
-* implementar múltiplas features de uma vez
-* abstrações prematuras
+- criar estruturas genéricas antecipadamente
+- implementar múltiplas features de uma vez
+- abstrações prematuras
 
 ---
 
@@ -210,51 +210,51 @@ Evitar:
 
 ### Slice 0 — Bootstrap
 
-* monorepo setup
-* config TypeScript
-* config testes
-* estrutura de pastas
-* scripts básicos
+- monorepo setup
+- config TypeScript
+- config testes
+- estrutura de pastas
+- scripts básicos
 
 ### Slice 1 — Registro de Agent
 
-* agent conecta via WebSocket
-* server registra device em memória
-* teste de registro
+- agent conecta via WebSocket
+- server registra device em memória
+- teste de registro
 
 ### Slice 2 — Listagem de Devices
 
-* endpoint REST `/devices`
-* web exibe lista
-* testes de leitura
+- endpoint REST `/devices`
+- web exibe lista
+- testes de leitura
 
 ### Slice 3 — Parser de Comando
 
-* parsing baseado em regras
-* suporte a frases simples
-* testes cobrindo parsing
+- parsing baseado em regras
+- suporte a frases simples
+- testes cobrindo parsing
 
 ### Slice 4 — Dispatch de Comando
 
-* server envia comando ao agent
-* agent responde ack
-* testes de fluxo
+- server envia comando ao agent
+- agent responde ack
+- testes de fluxo
 
 ### Slice 5 — Notify
 
-* agent executa notificação local
-* testes de execução
+- agent executa notificação local
+- testes de execução
 
 ### Slice 6 — Open App
 
-* agent abre app local
-* testes de execução
+- agent abre app local
+- testes de execução
 
 ### Slice 7 — Histórico
 
-* armazenar comandos em memória
-* endpoint de leitura
-* testes de persistência
+- armazenar comandos em memória
+- endpoint de leitura
+- testes de persistência
 
 ---
 
@@ -262,19 +262,19 @@ Evitar:
 
 Cada slice deve:
 
-* Ter testes cobrindo o comportamento principal
-* Ter código mínimo necessário
-* Não introduzir complexidade desnecessária
-* Ser executável/testável isoladamente
+- Ter testes cobrindo o comportamento principal
+- Ter código mínimo necessário
+- Não introduzir complexidade desnecessária
+- Ser executável/testável isoladamente
 
 ---
 
 ## 12. Regras de Refactor
 
-* Só refatorar com testes verdes
-* Refactors devem ser pequenos
-* Não mudar comportamento durante refactor
-* Evitar refactors globais grandes
+- Só refatorar com testes verdes
+- Refactors devem ser pequenos
+- Não mudar comportamento durante refactor
+- Evitar refactors globais grandes
 
 ---
 
@@ -282,46 +282,46 @@ Cada slice deve:
 
 ### Device
 
-* id
-* name
-* hostname
-* status
+- id
+- name
+- hostname
+- status
 
 ### Capability
 
-* open_app
-* notify
-* set_volume
-* play_media
+- open_app
+- notify
+- set_volume
+- play_media
 
 ### Command
 
-* id
-* rawText
-* intent
-* targetDeviceId
-* params
-* status
+- id
+- rawText
+- intent
+- targetDeviceId
+- params
+- status
 
 ---
 
 ## 14. Princípios para Evitar Overengineering
 
-* Não generalizar antes da necessidade
-* Não criar abstrações sem 2+ usos reais
-* Preferir soluções diretas
-* Adiar decisões complexas
-* Usar in-memory antes de banco real
+- Não generalizar antes da necessidade
+- Não criar abstrações sem 2+ usos reais
+- Preferir soluções diretas
+- Adiar decisões complexas
+- Usar in-memory antes de banco real
 
 ---
 
 ## 15. Regras de Implementação
 
-* Um slice por vez
-* Sempre começar pelos testes
-* Validar comportamento antes de avançar
-* Não implementar features fora do roadmap
-* Não adicionar voz ou IoT no MVP inicial
+- Um slice por vez
+- Sempre começar pelos testes
+- Validar comportamento antes de avançar
+- Não implementar features fora do roadmap
+- Não adicionar voz ou IoT no MVP inicial
 
 ---
 
@@ -329,12 +329,12 @@ Cada slice deve:
 
 O MVP é considerado válido quando:
 
-* Dois devices conectam via agent
-* Devices aparecem no web
-* Usuário envia comando em linguagem natural
-* Server interpreta corretamente
-* Agent executa ação
-* Resultado aparece no UI
+- Dois devices conectam via agent
+- Devices aparecem no web
+- Usuário envia comando em linguagem natural
+- Server interpreta corretamente
+- Agent executa ação
+- Resultado aparece no UI
 
 Exemplo:
 
@@ -343,8 +343,8 @@ Input:
 
 Resultado:
 
-* Spotify abre no dispositivo correto
-* UI mostra sucesso
+- Spotify abre no dispositivo correto
+- UI mostra sucesso
 
 ---
 
@@ -373,9 +373,9 @@ Sem implementar lógica de negócio ainda.
 
 Foco:
 
-* estrutura
-* tooling
-* testes funcionando
+- estrutura
+- tooling
+- testes funcionando
 
 ---
 
@@ -387,7 +387,16 @@ Evitar grandes implementações de uma vez.
 
 Sempre priorizar:
 
-* clareza
-* simplicidade
-* feedback rápido
-* código testável
+- clareza
+- simplicidade
+- feedback rápido
+- código testável
+
+Antes de implementar qualquer código, leia o AGENTS.md e me diga:
+
+1. qual é o próximo slice
+2. qual é o objetivo exato dele
+3. quais testes serão escritos primeiro
+4. qual é o menor incremento funcional possível para concluir esse slice
+
+Só depois disso comece a implementar.
