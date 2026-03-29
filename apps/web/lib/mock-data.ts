@@ -93,7 +93,7 @@ export const mockSystemStats: SystemStats = {
 export const commandPlaceholders = [
   "Abra o Spotify no Notebook 2",
   "Toque lo-fi no Notebook 2",
-  "Aumente o volume do Notebook 2 para 50%",
+  "Definir volume para 50% no Notebook 2",
   'Notificar "Backup concluido" no Mini PC Homelab',
   "Desligue o Desktop Sala",
 ];

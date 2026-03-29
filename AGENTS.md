@@ -295,6 +295,13 @@ Evitar:
 - falhas de notify geram log estruturado no agent sem quebrar ack
 - testes unitarios de parser/launcher e integracao ponta a ponta via `POST /commands`
 
+### Slice 14 - set_volume real no agent (Concluido)
+
+- parser suporta `Definir volume para <0-100>[% opcional] no <device>` com `intent: set_volume`
+- launcher real de set_volume no Windows via PowerShell + CoreAudio (master volume do device padrao)
+- falhas de set_volume geram log estruturado no agent sem quebrar ack
+- testes unitarios do launcher/parser e integracao ponta a ponta via `POST /commands`
+
 ---
 
 ## 11. Critérios de Conclusão por Slice
@@ -404,11 +411,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 13 concluido em 2026-03-29.
+Slice 14 concluido em 2026-03-29.
 
 Proximo passo recomendado:
 
--> Implementar a proxima intent real no agent via `POST /commands` (recomendado: set_volume), mantendo slices pequenos com TDD ponta a ponta
+-> Implementar a proxima intent real no agent via `POST /commands` (recomendado: play_media), mantendo slices pequenos com TDD ponta a ponta
 
 ## 19. Observação Final
 
@@ -433,4 +440,5 @@ Antes de implementar qualquer código, leia o AGENTS.md e me diga:
 Só depois disso comece a implementar.
 
 Sempre atualize o AGENTS.md quando concluir um slice
+
 

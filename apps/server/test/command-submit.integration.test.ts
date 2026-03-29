@@ -222,4 +222,78 @@ describe("slice 8 - command submit endpoint", () => {
       await server.stop();
     }
   });
+
+  it("parses set_volume phrase, dispatches set_volume and stores set_volume history in POST /commands", async () => {
+    const server = createLunaServer({ host: "127.0.0.1", port: 0 });
+    await server.start();
+
+    let agentConnection: { disconnect: () => Promise<void> } | undefined;
+    const executeSetVolume = vi.fn(async () => undefined);
+    const rawText = "Definir volume para 50% no Notebook 2";
+
+    try {
+      agentConnection = await connectAgent({
+        serverUrl: `ws://127.0.0.1:${server.getPort()}`,
+        device: {
+          id: "notebook-2",
+          name: "Notebook 2",
+          hostname: "notebook-2.local"
+        },
+        executeSetVolume
+      });
+
+      await waitForAssertion(() => {
+        expect(server.getRegisteredDevices()).toHaveLength(1);
+      });
+
+      const response = await fetch(`http://127.0.0.1:${server.getPort()}/commands`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          rawText
+        })
+      });
+
+      expect(response.status).toBe(200);
+      const payload = (await response.json()) as {
+        commandId: string;
+        targetDeviceId: string;
+        status: string;
+      };
+      expect(payload).toEqual({
+        commandId: expect.any(String),
+        targetDeviceId: "notebook-2",
+        status: "acknowledged"
+      });
+
+      expect(executeSetVolume).toHaveBeenCalledTimes(1);
+      expect(executeSetVolume).toHaveBeenCalledWith({
+        volumePercent: 50
+      });
+
+      const historyResponse = await fetch(
+        `http://127.0.0.1:${server.getPort()}/commands`
+      );
+      await expect(historyResponse.json()).resolves.toEqual([
+        {
+          id: payload.commandId,
+          rawText,
+          intent: "set_volume",
+          targetDeviceId: "notebook-2",
+          params: {
+            volumePercent: 50
+          },
+          status: "acknowledged"
+        }
+      ]);
+    } finally {
+      if (agentConnection) {
+        await agentConnection.disconnect();
+      }
+
+      await server.stop();
+    }
+  });
 });

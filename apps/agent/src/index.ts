@@ -6,6 +6,7 @@ import {
 } from "@luna/protocol";
 import { createNotifyLauncher } from "./notify-launcher";
 import { createOpenAppLauncher } from "./open-app-launcher";
+import { createSetVolumeLauncher } from "./set-volume-launcher";
 import { WebSocket } from "ws";
 
 export const agentBootstrapReady = true;
@@ -25,6 +26,9 @@ export interface ConnectAgentInput {
   ) => void | Promise<void>;
   executeOpenApp?: (
     openApp: LocalOpenApp
+  ) => void | Promise<void>;
+  executeSetVolume?: (
+    setVolume: LocalSetVolume
   ) => void | Promise<void>;
 }
 
@@ -47,8 +51,13 @@ export interface LocalOpenApp {
   appName: string;
 }
 
+export interface LocalSetVolume {
+  volumePercent: number;
+}
+
 const NOTIFY_INTENT = "notify" as const;
 const OPEN_APP_INTENT = "open_app" as const;
+const SET_VOLUME_INTENT = "set_volume" as const;
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
@@ -77,6 +86,22 @@ const extractLocalOpenApp = (
   return { appName };
 };
 
+const extractLocalSetVolume = (
+  params: Record<string, unknown>
+): LocalSetVolume | null => {
+  const volumePercent = params.volumePercent;
+  if (
+    typeof volumePercent !== "number" ||
+    !Number.isInteger(volumePercent) ||
+    volumePercent < 0 ||
+    volumePercent > 100
+  ) {
+    return null;
+  }
+
+  return { volumePercent };
+};
+
 const launchNotify = createNotifyLauncher();
 const executeLocalNotify = async (
   notification: LocalNotification
@@ -86,6 +111,11 @@ const launchOpenApp = createOpenAppLauncher();
 
 const executeLocalOpenApp = async (openApp: LocalOpenApp): Promise<void> =>
   launchOpenApp(openApp);
+
+const launchSetVolume = createSetVolumeLauncher();
+const executeLocalSetVolume = async (
+  setVolume: LocalSetVolume
+): Promise<void> => launchSetVolume(setVolume);
 
 const getErrorReason = (error: unknown): string => {
   if (error instanceof Error && error.message.trim().length > 0) {
@@ -101,6 +131,7 @@ export const connectAgent = async (
   const socket = new WebSocket(input.serverUrl);
   const executeNotify = input.executeNotify ?? executeLocalNotify;
   const executeOpenApp = input.executeOpenApp ?? executeLocalOpenApp;
+  const executeSetVolume = input.executeSetVolume ?? executeLocalSetVolume;
 
   const sendSerializedMessage = async (
     serializedMessage: string
@@ -164,6 +195,19 @@ export const connectAgent = async (
               console.error("[luna][open_app][error]", {
                 commandId: dispatchMessage.payload.commandId,
                 appName: openApp.appName,
+                reason: getErrorReason(error)
+              });
+            }
+          }
+        } else if (dispatchMessage.payload.intent === SET_VOLUME_INTENT) {
+          const setVolume = extractLocalSetVolume(dispatchMessage.payload.params);
+          if (setVolume) {
+            try {
+              await executeSetVolume(setVolume);
+            } catch (error) {
+              console.error("[luna][set_volume][error]", {
+                commandId: dispatchMessage.payload.commandId,
+                volumePercent: setVolume.volumePercent,
                 reason: getErrorReason(error)
               });
             }

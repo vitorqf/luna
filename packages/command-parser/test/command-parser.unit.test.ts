@@ -48,4 +48,36 @@ describe("slice 3 - command parser", () => {
   it("returns null for notify phrase without target device", () => {
     expect(parseCommand('Notificar "Backup concluido" no   ')).toBeNull();
   });
+
+  it("parses set_volume with percent suffix", () => {
+    expect(parseCommand("Definir volume para 50% no Notebook 2")).toEqual({
+      intent: "set_volume",
+      targetDeviceName: "Notebook 2",
+      params: {
+        volumePercent: 50
+      }
+    });
+  });
+
+  it("parses set_volume without percent suffix", () => {
+    expect(parseCommand("Definir volume para 27 no Notebook 2")).toEqual({
+      intent: "set_volume",
+      targetDeviceName: "Notebook 2",
+      params: {
+        volumePercent: 27
+      }
+    });
+  });
+
+  it("returns null for set_volume with decimal value", () => {
+    expect(parseCommand("Definir volume para 27.5% no Notebook 2")).toBeNull();
+  });
+
+  it("returns null for set_volume out of 0..100 range", () => {
+    expect(parseCommand("Definir volume para 150% no Notebook 2")).toBeNull();
+  });
+
+  it("returns null for set_volume phrase without target device", () => {
+    expect(parseCommand("Definir volume para 50% no   ")).toBeNull();
+  });
 });
