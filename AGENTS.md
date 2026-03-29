@@ -208,7 +208,7 @@ Evitar:
 
 ## 10. Roadmap do MVP
 
-### Slice 0 — Bootstrap
+### Slice 0 — Bootstrap (Concluido)
 
 - monorepo setup
 - config TypeScript
