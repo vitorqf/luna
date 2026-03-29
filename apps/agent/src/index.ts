@@ -6,6 +6,7 @@ import {
 } from "@luna/protocol";
 import { createNotifyLauncher } from "./notify-launcher";
 import { createOpenAppLauncher } from "./open-app-launcher";
+import { createPlayMediaLauncher } from "./play-media-launcher";
 import { createSetVolumeLauncher } from "./set-volume-launcher";
 import { WebSocket } from "ws";
 
@@ -29,6 +30,9 @@ export interface ConnectAgentInput {
   ) => void | Promise<void>;
   executeSetVolume?: (
     setVolume: LocalSetVolume
+  ) => void | Promise<void>;
+  executePlayMedia?: (
+    playMedia: LocalPlayMedia
   ) => void | Promise<void>;
 }
 
@@ -55,9 +59,14 @@ export interface LocalSetVolume {
   volumePercent: number;
 }
 
+export interface LocalPlayMedia {
+  mediaQuery: string;
+}
+
 const NOTIFY_INTENT = "notify" as const;
 const OPEN_APP_INTENT = "open_app" as const;
 const SET_VOLUME_INTENT = "set_volume" as const;
+const PLAY_MEDIA_INTENT = "play_media" as const;
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
@@ -102,6 +111,17 @@ const extractLocalSetVolume = (
   return { volumePercent };
 };
 
+const extractLocalPlayMedia = (
+  params: Record<string, unknown>
+): LocalPlayMedia | null => {
+  const mediaQuery = params.mediaQuery;
+  if (!isNonEmptyString(mediaQuery)) {
+    return null;
+  }
+
+  return { mediaQuery };
+};
+
 const launchNotify = createNotifyLauncher();
 const executeLocalNotify = async (
   notification: LocalNotification
@@ -116,6 +136,11 @@ const launchSetVolume = createSetVolumeLauncher();
 const executeLocalSetVolume = async (
   setVolume: LocalSetVolume
 ): Promise<void> => launchSetVolume(setVolume);
+
+const launchPlayMedia = createPlayMediaLauncher();
+const executeLocalPlayMedia = async (
+  playMedia: LocalPlayMedia
+): Promise<void> => launchPlayMedia(playMedia);
 
 const getErrorReason = (error: unknown): string => {
   if (error instanceof Error && error.message.trim().length > 0) {
@@ -132,6 +157,7 @@ export const connectAgent = async (
   const executeNotify = input.executeNotify ?? executeLocalNotify;
   const executeOpenApp = input.executeOpenApp ?? executeLocalOpenApp;
   const executeSetVolume = input.executeSetVolume ?? executeLocalSetVolume;
+  const executePlayMedia = input.executePlayMedia ?? executeLocalPlayMedia;
 
   const sendSerializedMessage = async (
     serializedMessage: string
@@ -208,6 +234,19 @@ export const connectAgent = async (
               console.error("[luna][set_volume][error]", {
                 commandId: dispatchMessage.payload.commandId,
                 volumePercent: setVolume.volumePercent,
+                reason: getErrorReason(error)
+              });
+            }
+          }
+        } else if (dispatchMessage.payload.intent === PLAY_MEDIA_INTENT) {
+          const playMedia = extractLocalPlayMedia(dispatchMessage.payload.params);
+          if (playMedia) {
+            try {
+              await executePlayMedia(playMedia);
+            } catch (error) {
+              console.error("[luna][play_media][error]", {
+                commandId: dispatchMessage.payload.commandId,
+                mediaQuery: playMedia.mediaQuery,
                 reason: getErrorReason(error)
               });
             }

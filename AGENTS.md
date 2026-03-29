@@ -302,6 +302,13 @@ Evitar:
 - falhas de set_volume geram log estruturado no agent sem quebrar ack
 - testes unitarios do launcher/parser e integracao ponta a ponta via `POST /commands`
 
+### Slice 15 - play_media real no agent (Concluido)
+
+- parser suporta `Tocar "midia" no <device>` com `intent: play_media`
+- launcher real de play_media no Windows via `cmd /c start` (URL direta ou busca YouTube para texto)
+- falhas de play_media geram log estruturado no agent sem quebrar ack
+- testes unitarios do launcher/parser e integracao ponta a ponta via `POST /commands`
+
 ---
 
 ## 11. Critérios de Conclusão por Slice
@@ -411,11 +418,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 14 concluido em 2026-03-29.
+Slice 15 concluido em 2026-03-29.
 
 Proximo passo recomendado:
 
--> Implementar a proxima intent real no agent via `POST /commands` (recomendado: play_media), mantendo slices pequenos com TDD ponta a ponta
+-> Validar o MVP ponta a ponta em ambiente real (2 devices + 4 intents) e definir proximo hardening de feedback de erro
 
 ## 19. Observação Final
 
@@ -440,5 +447,6 @@ Antes de implementar qualquer código, leia o AGENTS.md e me diga:
 Só depois disso comece a implementar.
 
 Sempre atualize o AGENTS.md quando concluir um slice
+
 
 

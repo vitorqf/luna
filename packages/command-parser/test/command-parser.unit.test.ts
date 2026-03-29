@@ -80,4 +80,38 @@ describe("slice 3 - command parser", () => {
   it("returns null for set_volume phrase without target device", () => {
     expect(parseCommand("Definir volume para 50% no   ")).toBeNull();
   });
+
+  it('parses play_media with quoted text in format `Tocar "midia" no <device>`', () => {
+    expect(parseCommand('Tocar "lo-fi" no Notebook 2')).toEqual({
+      intent: "play_media",
+      targetDeviceName: "Notebook 2",
+      params: {
+        mediaQuery: "lo-fi"
+      }
+    });
+  });
+
+  it("parses play_media with quoted URL", () => {
+    expect(
+      parseCommand('Tocar "https://example.com/audio.mp3" no Notebook 2')
+    ).toEqual({
+      intent: "play_media",
+      targetDeviceName: "Notebook 2",
+      params: {
+        mediaQuery: "https://example.com/audio.mp3"
+      }
+    });
+  });
+
+  it("returns null for play_media phrase without double quotes", () => {
+    expect(parseCommand("Tocar lo-fi no Notebook 2")).toBeNull();
+  });
+
+  it("returns null for play_media phrase with empty quoted media", () => {
+    expect(parseCommand('Tocar "   " no Notebook 2')).toBeNull();
+  });
+
+  it("returns null for play_media phrase without target device", () => {
+    expect(parseCommand('Tocar "lo-fi" no   ')).toBeNull();
+  });
 });

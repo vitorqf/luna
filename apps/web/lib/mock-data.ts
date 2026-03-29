@@ -47,7 +47,7 @@ export const mockCommandHistory: CommandResult[] = [
   },
   {
     id: "cmd-002",
-    command: "Toque lo-fi no Notebook 2",
+    command: 'Tocar "lo-fi" no Notebook 2',
     targetDevice: "Notebook 2",
     targetDeviceId: "dev-001",
     status: "success",
@@ -92,7 +92,7 @@ export const mockSystemStats: SystemStats = {
 
 export const commandPlaceholders = [
   "Abra o Spotify no Notebook 2",
-  "Toque lo-fi no Notebook 2",
+  'Tocar "lo-fi" no Notebook 2',
   "Definir volume para 50% no Notebook 2",
   'Notificar "Backup concluido" no Mini PC Homelab',
   "Desligue o Desktop Sala",
