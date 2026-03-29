@@ -228,7 +228,7 @@ Evitar:
 - web exibe lista
 - testes de leitura
 
-### Slice 3 — Parser de Comando
+### Slice 3 — Parser de Comando (Concluido)
 
 - parsing baseado em regras
 - suporte a frases simples
@@ -367,13 +367,13 @@ Para cada etapa:
 
 Começar pelo:
 
-→ Slice 3: Parser de Comando
+→ Slice 4: Dispatch de Comando
 
 Foco:
 
-- parsing baseado em regras
-- suporte a frases simples
-- testes cobrindo parsing
+- server envia comando ao agent
+- agent responde ack
+- testes de fluxo
 
 ---
 
