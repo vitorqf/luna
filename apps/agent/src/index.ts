@@ -18,6 +18,9 @@ export interface ConnectAgentInput {
   serverUrl: string;
   device: AgentIdentity;
   onCommand?: (command: ReceivedCommand) => void | Promise<void>;
+  executeNotify?: (
+    notification: LocalNotification
+  ) => void | Promise<void>;
 }
 
 export interface AgentConnection {
@@ -30,10 +33,40 @@ export interface ReceivedCommand {
   params: Record<string, unknown>;
 }
 
+export interface LocalNotification {
+  title: string;
+  message: string;
+}
+
+const NOTIFY_INTENT = "notify" as const;
+
+const isNonEmptyString = (value: unknown): value is string =>
+  typeof value === "string" && value.trim().length > 0;
+
+const extractLocalNotification = (
+  params: Record<string, unknown>
+): LocalNotification | null => {
+  const title = params.title;
+  const message = params.message;
+
+  if (!isNonEmptyString(title) || !isNonEmptyString(message)) {
+    return null;
+  }
+
+  return { title, message };
+};
+
+const executeLocalNotify = async (
+  notification: LocalNotification
+): Promise<void> => {
+  console.info(`[luna][notify] ${notification.title}: ${notification.message}`);
+};
+
 export const connectAgent = async (
   input: ConnectAgentInput
 ): Promise<AgentConnection> => {
   const socket = new WebSocket(input.serverUrl);
+  const executeNotify = input.executeNotify ?? executeLocalNotify;
 
   const sendSerializedMessage = async (
     serializedMessage: string
@@ -72,6 +105,15 @@ export const connectAgent = async (
 
     void (async () => {
       try {
+        if (dispatchMessage.payload.intent === NOTIFY_INTENT) {
+          const notification = extractLocalNotification(
+            dispatchMessage.payload.params
+          );
+          if (notification) {
+            await executeNotify(notification);
+          }
+        }
+
         await input.onCommand?.({
           commandId: dispatchMessage.payload.commandId,
           intent: dispatchMessage.payload.intent,

@@ -240,7 +240,7 @@ Evitar:
 - agent responde ack
 - testes de fluxo
 
-### Slice 5 — Notify
+### Slice 5 — Notify (Concluido)
 
 - agent executa notificação local
 - testes de execução
@@ -367,11 +367,11 @@ Para cada etapa:
 
 Começar pelo:
 
-→ Slice 5: Notify
+→ Slice 6: Open App
 
 Foco:
 
-- agent executa notificação local
+- agent abre app local
 - testes de execução
 
 ---
