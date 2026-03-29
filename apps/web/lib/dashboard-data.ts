@@ -1,0 +1,66 @@
+import type { Command as ServerCommand, Device as ServerDevice } from "@luna/shared-types";
+import type { CommandResult, Device, SystemStats } from "./types";
+
+const DEFAULT_CAPABILITIES: Device["capabilities"] = [
+  "notify",
+  "open_app",
+  "set_volume",
+  "play_media"
+];
+
+const inferDeviceType = (device: ServerDevice): Device["type"] => {
+  const source = `${device.name} ${device.hostname}`.toLocaleLowerCase();
+
+  if (source.includes("notebook") || source.includes("laptop")) {
+    return "notebook";
+  }
+
+  if (source.includes("mini")) {
+    return "mini_pc";
+  }
+
+  if (source.includes("server")) {
+    return "server";
+  }
+
+  return "desktop";
+};
+
+export const mapDevicesToUi = (devices: ServerDevice[]): Device[] =>
+  devices.map((device) => ({
+    id: device.id,
+    name: device.name,
+    type: inferDeviceType(device),
+    status: device.status,
+    capabilities: [...DEFAULT_CAPABILITIES],
+    lastSeen: device.status === "online" ? "now" : "offline"
+  }));
+
+export const mapCommandsToUi = (
+  commands: ServerCommand[],
+  devices: ReadonlyArray<Pick<Device, "id" | "name">>
+): CommandResult[] => {
+  const deviceNameById = new Map(devices.map((device) => [device.id, device.name]));
+
+  return [...commands]
+    .reverse()
+    .map((command): CommandResult => ({
+      id: command.id,
+      command: command.rawText,
+      targetDevice: deviceNameById.get(command.targetDeviceId) ?? "Unknown device",
+      targetDeviceId: command.targetDeviceId,
+      status: command.status === "acknowledged" ? "success" : "error",
+      message: command.status === "acknowledged" ? "Acknowledged by device" : "Execution failed",
+      timestamp: "recent"
+    }));
+};
+
+export const buildStats = (
+  devices: ReadonlyArray<Pick<Device, "status">>,
+  commands: ReadonlyArray<Pick<CommandResult, "status">>
+): SystemStats => ({
+  totalDevices: devices.length,
+  devicesOnline: devices.filter((device) => device.status === "online").length,
+  commandsExecuted: commands.length,
+  recentFailures: commands.filter((command) => command.status === "error").length
+});

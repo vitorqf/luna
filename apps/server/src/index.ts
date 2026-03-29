@@ -1,4 +1,5 @@
 import type { Command, Device } from "@luna/shared-types";
+import { parseCommand } from "@luna/command-parser";
 import {
   createCommandDispatchMessage,
   parseAgentRegisterMessage,
@@ -57,6 +58,31 @@ interface PendingCommandAck {
   reject: (error: Error) => void;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const isNonEmptyString = (value: unknown): value is string =>
+  typeof value === "string" && value.trim().length > 0;
+
+const sendJson = (
+  response: ServerResponse,
+  statusCode: number,
+  payload: unknown
+): void => {
+  response.writeHead(statusCode, { "content-type": "application/json; charset=utf-8" });
+  response.end(JSON.stringify(payload));
+};
+
+const readRawRequestBody = async (request: IncomingMessage): Promise<string> => {
+  const chunks: Buffer[] = [];
+
+  for await (const chunk of request) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+
+  return Buffer.concat(chunks).toString("utf-8");
+};
+
 export const createLunaServer = (options: LunaServerOptions = {}): LunaServer => {
   const devices = new Map<string, Device>();
   const commandHistory: Command[] = [];
@@ -71,21 +97,80 @@ export const createLunaServer = (options: LunaServerOptions = {}): LunaServer =>
   const getRegisteredDevices = (): Device[] => Array.from(devices.values());
   const getCommandHistory = (): Command[] => [...commandHistory];
 
-  const handleRequest = (_request: IncomingMessage, response: ServerResponse): void => {
-    if (_request.method === "GET" && _request.url === "/devices") {
-      response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify(getRegisteredDevices()));
+  const resolveDeviceByName = (deviceName: string): Device | null => {
+    const normalizedDeviceName = deviceName.trim().toLocaleLowerCase();
+    for (const device of devices.values()) {
+      if (device.name.trim().toLocaleLowerCase() === normalizedDeviceName) {
+        return device;
+      }
+    }
+
+    return null;
+  };
+
+  const handleSubmitCommand = async (
+    request: IncomingMessage,
+    response: ServerResponse
+  ): Promise<void> => {
+    let payload: unknown;
+
+    try {
+      const rawBody = await readRawRequestBody(request);
+      payload = JSON.parse(rawBody);
+    } catch {
+      sendJson(response, 400, { message: "Invalid JSON body." });
       return;
     }
 
-    if (_request.method === "GET" && _request.url === "/commands") {
-      response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify(getCommandHistory()));
+    if (!isRecord(payload) || !isNonEmptyString(payload.rawText)) {
+      sendJson(response, 400, { message: "rawText is required." });
       return;
     }
 
-    response.writeHead(404, { "content-type": "application/json; charset=utf-8" });
-    response.end(JSON.stringify({ message: "Not Found" }));
+    const rawText = payload.rawText.trim();
+    const parsedCommand = parseCommand(rawText);
+    if (!parsedCommand) {
+      sendJson(response, 422, { message: "Unable to parse command." });
+      return;
+    }
+
+    const targetDevice = resolveDeviceByName(parsedCommand.targetDeviceName);
+    if (!targetDevice) {
+      sendJson(response, 404, { message: "Target device is not registered." });
+      return;
+    }
+
+    try {
+      const ack = await dispatchCommand({
+        rawText,
+        targetDeviceId: targetDevice.id,
+        intent: parsedCommand.intent,
+        params: parsedCommand.params
+      });
+
+      sendJson(response, 200, ack);
+    } catch {
+      sendJson(response, 500, { message: "Failed to dispatch command." });
+    }
+  };
+
+  const handleRequest = (request: IncomingMessage, response: ServerResponse): void => {
+    if (request.method === "GET" && request.url === "/devices") {
+      sendJson(response, 200, getRegisteredDevices());
+      return;
+    }
+
+    if (request.method === "GET" && request.url === "/commands") {
+      sendJson(response, 200, getCommandHistory());
+      return;
+    }
+
+    if (request.method === "POST" && request.url === "/commands") {
+      void handleSubmitCommand(request, response);
+      return;
+    }
+
+    sendJson(response, 404, { message: "Not Found" });
   };
 
   const start = async (): Promise<void> => {

@@ -256,6 +256,12 @@ Evitar:
 - endpoint de leitura
 - testes de persist√™ncia
 
+### Slice 8 - Fluxo MVP ponta a ponta no UI (Concluido)
+
+- endpoint `POST /commands` no server para comando em linguagem natural
+- web conectado aos endpoints reais (`/devices`, `/commands`, `POST /commands`)
+- feedback de sucesso/erro no chat com testes de integraÁ„o e unit·rios
+
 ---
 
 ## 11. Crit√©rios de Conclus√£o por Slice
@@ -365,11 +371,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 7 concluido em 2026-03-29.
+Slice 8 concluido em 2026-03-29.
 
 Proximo passo recomendado:
 
--> Validar o fluxo MVP ponta a ponta (comando + execucao + feedback no UI)
+-> Expandir parser e dispatch para intents adicionais do MVP (notify, set_volume, play_media) com cobertura de testes
 
 ## 19. Observa√ß√£o Final
 
