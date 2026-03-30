@@ -1,4 +1,5 @@
 import { pathToFileURL } from "node:url";
+import { hostname as getHostname } from "node:os";
 import { config as loadDotEnv } from "dotenv";
 import {
   connectAgent,
@@ -7,9 +8,6 @@ import {
 } from "./index";
 
 const DEFAULT_SERVER_URL = "ws://127.0.0.1:4000";
-const DEFAULT_AGENT_ID = "local-agent";
-const DEFAULT_AGENT_NAME = "Local Agent";
-const DEFAULT_AGENT_HOSTNAME = "localhost";
 
 interface RuntimeLogger {
   info: (message: string) => void;
@@ -69,17 +67,22 @@ const isMainModule = (moduleUrl: string): boolean => {
 
 export const parseAgentRuntimeConfig = (
   env: RuntimeEnv = process.env,
-): AgentRuntimeConfig => ({
-  serverUrl: parseServerUrl(env.LUNA_AGENT_SERVER_URL),
-  device: {
-    id: parseNonEmptyString(env.LUNA_AGENT_DEVICE_ID, DEFAULT_AGENT_ID),
-    name: parseNonEmptyString(env.LUNA_AGENT_DEVICE_NAME, DEFAULT_AGENT_NAME),
-    hostname: parseNonEmptyString(
-      env.LUNA_AGENT_DEVICE_HOSTNAME,
-      DEFAULT_AGENT_HOSTNAME,
-    ),
-  },
-});
+): AgentRuntimeConfig => {
+  const defaultHostname = getHostname();
+  const deviceHostname = parseNonEmptyString(
+    env.LUNA_AGENT_DEVICE_HOSTNAME,
+    defaultHostname,
+  );
+
+  return {
+    serverUrl: parseServerUrl(env.LUNA_AGENT_SERVER_URL),
+    device: {
+      id: parseNonEmptyString(env.LUNA_AGENT_DEVICE_ID, defaultHostname),
+      name: parseNonEmptyString(env.LUNA_AGENT_DEVICE_NAME, deviceHostname),
+      hostname: deviceHostname,
+    },
+  };
+};
 
 export const loadAgentRuntimeEnvFromFile = (
   envFilePath = ".env",

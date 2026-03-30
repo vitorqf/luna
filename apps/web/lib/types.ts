@@ -7,6 +7,7 @@ export type DeviceCapability = "notify" | "open_app" | "set_volume" | "play_medi
 export interface Device {
   id: string;
   name: string;
+  hostname: string;
   type: "notebook" | "desktop" | "server" | "mini_pc";
   status: DeviceStatus;
   capabilities: DeviceCapability[];

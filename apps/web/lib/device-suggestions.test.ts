@@ -10,6 +10,7 @@ const sampleDevices: Device[] = [
   {
     id: "dev-1",
     name: "Notebook 2",
+    hostname: "notebook-2.local",
     type: "notebook",
     status: "online",
     capabilities: ["notify"]
@@ -17,6 +18,7 @@ const sampleDevices: Device[] = [
   {
     id: "dev-2",
     name: "Sala Notebook",
+    hostname: "sala-notebook.local",
     type: "desktop",
     status: "online",
     capabilities: ["notify"]
@@ -24,6 +26,7 @@ const sampleDevices: Device[] = [
   {
     id: "dev-3",
     name: "Server Principal",
+    hostname: "server-principal.local",
     type: "server",
     status: "offline",
     capabilities: ["notify"]

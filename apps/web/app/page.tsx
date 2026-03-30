@@ -14,6 +14,7 @@ import {
   mapCommandsToUi,
   mapDevicesToUi
 } from "@/lib/dashboard-data";
+import { executeDeviceRenameFlow } from "@/lib/device-rename-flow";
 import type { CommandResult, Device, SystemStats } from "@/lib/types";
 
 const lunaApiClient = createLunaApiClient();
@@ -142,6 +143,27 @@ export default function LunaDashboard() {
     [refreshDashboard]
   );
 
+  const handleRenameDevice = useCallback(
+    async (deviceId: string, draftName: string): Promise<void> => {
+      try {
+        await executeDeviceRenameFlow({
+          deviceId,
+          draftName,
+          renameDevice: async (targetDeviceId, name) => {
+            await lunaApiClient.renameDevice(targetDeviceId, name);
+          },
+          refreshDashboard
+        });
+        setLoadError(null);
+      } catch (error) {
+        const errorMessage = formatCommandError(error);
+        setLoadError(errorMessage);
+        throw new Error(errorMessage);
+      }
+    },
+    [refreshDashboard]
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <Header devicesOnline={stats.devicesOnline} totalDevices={stats.totalDevices} />
@@ -166,7 +188,10 @@ export default function LunaDashboard() {
 
           {/* Sidebar - Right panel */}
           <div className="space-y-6">
-            <DevicesPanel devices={devices} />
+            <DevicesPanel
+              devices={devices}
+              onRenameDevice={handleRenameDevice}
+            />
             <StatsOverview stats={stats} />
             <ActivityList commands={commands} />
           </div>

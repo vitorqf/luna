@@ -23,7 +23,8 @@ describe("luna api client", () => {
             id: "notebook-2",
             name: "Notebook 2",
             hostname: "notebook-2.local",
-            status: "online"
+            status: "online",
+            capabilities: ["notify", "open_app"]
           }
         ])
       );
@@ -37,7 +38,8 @@ describe("luna api client", () => {
         id: "notebook-2",
         name: "Notebook 2",
         hostname: "notebook-2.local",
-        status: "online"
+        status: "online",
+        capabilities: ["notify", "open_app"]
       }
     ]);
   });
@@ -69,6 +71,40 @@ describe("luna api client", () => {
       commandId: "cmd-123",
       targetDeviceId: "notebook-2",
       status: "success"
+    });
+  });
+
+  it("renames a device with PATCH /devices/:id", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        makeJsonResponse({
+          id: "notebook-2",
+          name: "Sala",
+          hostname: "notebook-2.local",
+          status: "online",
+          capabilities: ["notify", "open_app"]
+        })
+      );
+
+    const client = createLunaApiClient("http://127.0.0.1:4444");
+    const device = await client.renameDevice("notebook-2", "Sala");
+
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:4444/devices/notebook-2", {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        name: "Sala"
+      })
+    });
+    expect(device).toEqual({
+      id: "notebook-2",
+      name: "Sala",
+      hostname: "notebook-2.local",
+      status: "online",
+      capabilities: ["notify", "open_app"]
     });
   });
 

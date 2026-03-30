@@ -366,16 +366,23 @@ Evitar:
 - sugestoes suportam click, Enter, Tab e Escape com substituicao do fragmento de device no final da frase
 - helpers puros de sugestao/filtro/ordenacao cobertos por testes unitarios
 
----
+### Slice 23 - hostname automatico + apelido opcional por device (Concluido)
 
-## 11. Critérios de Conclusão por Slice
+- agent passa a usar os.hostname() como default real para id/hostname e name fallback
+- server ganhou PATCH /devices/:id para rename de apelido com validacao (trim + collapse spaces, obrigatorio, unico case-insensitive)
+- em reconexao com mesmo id, server preserva apelido customizado e atualiza hostname/capabilities/status
+- resolucao de target no POST /commands agora tenta name (apelido) primeiro e faz fallback para hostname
+- web ganhou edicao inline de apelido no card de device e chamada real de rename via luna-api, com refresh apos salvar
+- testes de agent/server/web adicionados e regressao completa verde
+
+## 11. Crit�rios de Conclus�o por Slice
 
 Cada slice deve:
 
 - Ter testes cobrindo o comportamento principal
-- Ter código mínimo necessário
-- Não introduzir complexidade desnecessária
-- Ser executável/testável isoladamente
+- Ter c�digo m�nimo necess�rio
+- N�o introduzir complexidade desnecess�ria
+- Ser execut�vel/test�vel isoladamente
 
 ---
 
@@ -476,11 +483,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 22 concluido em 2026-03-29.
+Slice 23 concluido em 2026-03-29.
 
 Proximo passo recomendado:
 
--> Validar capability do device no server antes do dispatch (falha rapida com `unsupported_intent`)
+-> Slice 24: descoberta de agents na rede em modo "descobrir + aprovar", reaproveitando `hostname` como identificacao inicial
 
 ## 19. Observação Final
 

@@ -44,6 +44,7 @@ export interface LunaApiClient {
   fetchDevices: () => Promise<Device[]>;
   fetchCommands: () => Promise<Command[]>;
   submitCommand: (rawText: string) => Promise<SubmitCommandAck>;
+  renameDevice: (deviceId: string, name: string) => Promise<Device>;
 }
 
 export const createLunaApiClient = (baseUrl = resolveBaseUrl()): LunaApiClient => {
@@ -59,6 +60,14 @@ export const createLunaApiClient = (baseUrl = resolveBaseUrl()): LunaApiClient =
           "content-type": "application/json"
         },
         body: JSON.stringify({ rawText })
+      }),
+    renameDevice: (deviceId: string, name: string) =>
+      fetchJson<Device>(`${normalizedBaseUrl}/devices/${encodeURIComponent(deviceId)}`, {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ name })
       })
   };
 };

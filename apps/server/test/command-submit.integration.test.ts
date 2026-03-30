@@ -221,6 +221,152 @@ describe("slice 8 - command submit endpoint", () => {
     }
   });
 
+  it("resolves target by custom alias in POST /commands", async () => {
+    const server = createLunaServer({ host: "127.0.0.1", port: 0 });
+    await server.start();
+
+    let agentConnection: { disconnect: () => Promise<void> } | undefined;
+    const executeOpenApp = vi.fn(async () => undefined);
+    const rawText = "Abrir Spotify no Sala";
+
+    try {
+      agentConnection = await connectAgent({
+        serverUrl: `ws://127.0.0.1:${server.getPort()}`,
+        device: {
+          id: "notebook-2",
+          name: "Notebook 2",
+          hostname: "notebook-2.local"
+        },
+        executeOpenApp
+      });
+
+      await waitForAssertion(() => {
+        expect(server.getRegisteredDevices()).toHaveLength(1);
+      });
+
+      const renameResponse = await fetch(
+        `http://127.0.0.1:${server.getPort()}/devices/notebook-2`,
+        {
+          method: "PATCH",
+          headers: {
+            "content-type": "application/json"
+          },
+          body: JSON.stringify({
+            name: "Sala"
+          })
+        }
+      );
+      expect(renameResponse.status).toBe(200);
+
+      const response = await fetch(`http://127.0.0.1:${server.getPort()}/commands`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          rawText
+        })
+      });
+
+      expect(response.status).toBe(200);
+      const payload = (await response.json()) as {
+        commandId: string;
+        targetDeviceId: string;
+        status: string;
+      };
+      expect(payload).toEqual({
+        commandId: expect.any(String),
+        targetDeviceId: "notebook-2",
+        status: "success"
+      });
+
+      expect(executeOpenApp).toHaveBeenCalledTimes(1);
+      expect(executeOpenApp).toHaveBeenCalledWith({
+        appName: "Spotify"
+      });
+
+      const historyResponse = await fetch(
+        `http://127.0.0.1:${server.getPort()}/commands`
+      );
+      await expect(historyResponse.json()).resolves.toEqual([
+        {
+          id: payload.commandId,
+          rawText,
+          intent: "open_app",
+          targetDeviceId: "notebook-2",
+          params: {
+            appName: "Spotify"
+          },
+          status: "success"
+        }
+      ]);
+    } finally {
+      if (agentConnection) {
+        await agentConnection.disconnect();
+      }
+
+      await server.stop();
+    }
+  });
+
+  it("falls back to hostname when alias does not match in POST /commands", async () => {
+    const server = createLunaServer({ host: "127.0.0.1", port: 0 });
+    await server.start();
+
+    let agentConnection: { disconnect: () => Promise<void> } | undefined;
+    const executeOpenApp = vi.fn(async () => undefined);
+    const rawText = "Abrir Spotify no NOTEBOOK-2.LOCAL";
+
+    try {
+      agentConnection = await connectAgent({
+        serverUrl: `ws://127.0.0.1:${server.getPort()}`,
+        device: {
+          id: "notebook-2",
+          name: "Sala",
+          hostname: "notebook-2.local"
+        },
+        executeOpenApp
+      });
+
+      await waitForAssertion(() => {
+        expect(server.getRegisteredDevices()).toHaveLength(1);
+      });
+
+      const response = await fetch(`http://127.0.0.1:${server.getPort()}/commands`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          rawText
+        })
+      });
+
+      expect(response.status).toBe(200);
+      const payload = (await response.json()) as {
+        commandId: string;
+        targetDeviceId: string;
+        status: string;
+      };
+      expect(payload).toEqual({
+        commandId: expect.any(String),
+        targetDeviceId: "notebook-2",
+        status: "success"
+      });
+
+      expect(executeOpenApp).toHaveBeenCalledTimes(1);
+      expect(executeOpenApp).toHaveBeenCalledWith({
+        appName: "Spotify"
+      });
+    } finally {
+      if (agentConnection) {
+        await agentConnection.disconnect();
+      }
+
+      await server.stop();
+    }
+  });
+
   it("parses notify phrase, dispatches notify and stores notify history in POST /commands", async () => {
     const server = createLunaServer({ host: "127.0.0.1", port: 0 });
     await server.start();

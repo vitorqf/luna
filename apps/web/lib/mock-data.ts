@@ -4,6 +4,7 @@ export const mockDevices: Device[] = [
   {
     id: "dev-001",
     name: "Notebook 2",
+    hostname: "notebook-2.local",
     type: "notebook",
     status: "online",
     capabilities: ["notify", "open_app", "set_volume", "play_media"],
@@ -12,6 +13,7 @@ export const mockDevices: Device[] = [
   {
     id: "dev-002",
     name: "Desktop Sala",
+    hostname: "desktop-sala.local",
     type: "desktop",
     status: "offline",
     capabilities: ["notify", "open_app", "set_volume", "screenshot", "shutdown"],
@@ -20,6 +22,7 @@ export const mockDevices: Device[] = [
   {
     id: "dev-003",
     name: "Mini PC Homelab",
+    hostname: "mini-pc-homelab.local",
     type: "mini_pc",
     status: "online",
     capabilities: ["notify", "shutdown"],
@@ -28,6 +31,7 @@ export const mockDevices: Device[] = [
   {
     id: "dev-004",
     name: "Server Principal",
+    hostname: "server-principal.local",
     type: "server",
     status: "online",
     capabilities: ["notify", "shutdown"],

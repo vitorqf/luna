@@ -6,9 +6,10 @@ import type { Device } from "@/lib/types";
 
 interface DevicesPanelProps {
   devices: Device[];
+  onRenameDevice?: (deviceId: string, draftName: string) => Promise<void>;
 }
 
-export function DevicesPanel({ devices }: DevicesPanelProps) {
+export function DevicesPanel({ devices, onRenameDevice }: DevicesPanelProps) {
   const onlineDevices = devices.filter((d) => d.status === "online");
   const offlineDevices = devices.filter((d) => d.status === "offline");
 
@@ -27,12 +28,20 @@ export function DevicesPanel({ devices }: DevicesPanelProps) {
       <div className="space-y-3">
         {/* Online devices first */}
         {onlineDevices.map((device) => (
-          <DeviceCard key={device.id} device={device} />
+          <DeviceCard
+            key={device.id}
+            device={device}
+            onRenameDevice={onRenameDevice}
+          />
         ))}
         
         {/* Offline devices */}
         {offlineDevices.map((device) => (
-          <DeviceCard key={device.id} device={device} />
+          <DeviceCard
+            key={device.id}
+            device={device}
+            onRenameDevice={onRenameDevice}
+          />
         ))}
       </div>
     </div>

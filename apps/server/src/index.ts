@@ -67,8 +67,11 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
+const normalizeWhitespace = (value: string): string =>
+  value.trim().replace(/\s+/g, " ");
+
 const CORS_ALLOW_ORIGIN = "*";
-const CORS_ALLOW_METHODS = "GET,POST,OPTIONS";
+const CORS_ALLOW_METHODS = "GET,POST,PATCH,OPTIONS";
 const CORS_ALLOW_HEADERS = "content-type";
 
 const setCorsHeaders = (response: ServerResponse): void => {
@@ -111,6 +114,7 @@ export const createLunaServer = (
   options: LunaServerOptions = {},
 ): LunaServer => {
   const devices = new Map<string, Device>();
+  const customDeviceAliases = new Map<string, string>();
   const commandHistory: Command[] = [];
   const deviceSockets = new Map<string, WebSocket>();
   const socketDeviceIds = new WeakMap<WebSocket, string>();
@@ -164,15 +168,58 @@ export const createLunaServer = (
     heartbeatTimeouts.set(deviceId, timeoutHandle);
   };
 
-  const resolveDeviceByName = (deviceName: string): Device | null => {
-    const normalizedDeviceName = deviceName.trim().toLocaleLowerCase();
+  const normalizeDeviceKey = (value: string): string =>
+    normalizeWhitespace(value).toLocaleLowerCase();
+
+  const resolveDeviceByTarget = (targetDeviceName: string): Device | null => {
+    const normalizedTarget = normalizeDeviceKey(targetDeviceName);
     for (const device of devices.values()) {
-      if (device.name.trim().toLocaleLowerCase() === normalizedDeviceName) {
+      if (normalizeDeviceKey(device.name) === normalizedTarget) {
+        return device;
+      }
+    }
+
+    for (const device of devices.values()) {
+      if (normalizeDeviceKey(device.hostname) === normalizedTarget) {
         return device;
       }
     }
 
     return null;
+  };
+
+  const findDeviceById = (deviceId: string): Device | null =>
+    devices.get(deviceId) ?? null;
+
+  const isDeviceNameTaken = (
+    candidateName: string,
+    excludedDeviceId: string,
+  ): boolean => {
+    const normalizedCandidateName = normalizeDeviceKey(candidateName);
+    for (const device of devices.values()) {
+      if (device.id === excludedDeviceId) {
+        continue;
+      }
+
+      if (normalizeDeviceKey(device.name) === normalizedCandidateName) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  const extractDeviceIdFromPatchRoute = (requestUrl: string): string | null => {
+    const match = requestUrl.match(/^\/devices\/([^/]+)$/);
+    if (!match) {
+      return null;
+    }
+
+    try {
+      return decodeURIComponent(match[1] ?? "");
+    } catch {
+      return null;
+    }
   };
 
   const handleSubmitCommand = async (
@@ -201,7 +248,7 @@ export const createLunaServer = (
       return;
     }
 
-    const targetDevice = resolveDeviceByName(parsedCommand.targetDeviceName);
+    const targetDevice = resolveDeviceByTarget(parsedCommand.targetDeviceName);
     if (!targetDevice) {
       sendJson(response, 404, { message: "Target device is not registered." });
       return;
@@ -219,6 +266,54 @@ export const createLunaServer = (
     } catch {
       sendJson(response, 500, { message: "Failed to dispatch command." });
     }
+  };
+
+  const handleRenameDevice = async (
+    request: IncomingMessage,
+    response: ServerResponse,
+    deviceId: string,
+  ): Promise<void> => {
+    const currentDevice = findDeviceById(deviceId);
+    if (!currentDevice) {
+      sendJson(response, 404, { message: "Device not found." });
+      return;
+    }
+
+    let payload: unknown;
+
+    try {
+      const rawBody = await readRawRequestBody(request);
+      payload = JSON.parse(rawBody);
+    } catch {
+      sendJson(response, 400, { message: "Invalid JSON body." });
+      return;
+    }
+
+    if (!isRecord(payload) || !isNonEmptyString(payload.name)) {
+      sendJson(response, 400, { message: "name is required." });
+      return;
+    }
+
+    const normalizedName = normalizeWhitespace(payload.name);
+    if (!normalizedName) {
+      sendJson(response, 400, { message: "name is required." });
+      return;
+    }
+
+    if (isDeviceNameTaken(normalizedName, deviceId)) {
+      sendJson(response, 409, { message: "Device name is already in use." });
+      return;
+    }
+
+    customDeviceAliases.set(deviceId, normalizedName);
+
+    const updatedDevice: Device = {
+      ...currentDevice,
+      name: normalizedName,
+    };
+    devices.set(deviceId, updatedDevice);
+
+    sendJson(response, 200, updatedDevice);
   };
 
   const handleRequest = (
@@ -243,6 +338,14 @@ export const createLunaServer = (
     if (request.method === "POST" && request.url === "/commands") {
       void handleSubmitCommand(request, response);
       return;
+    }
+
+    if (request.method === "PATCH" && isNonEmptyString(request.url)) {
+      const deviceId = extractDeviceIdFromPatchRoute(request.url);
+      if (deviceId) {
+        void handleRenameDevice(request, response, deviceId);
+        return;
+      }
     }
 
     sendJson(response, 404, { message: "Not Found" });
@@ -276,13 +379,23 @@ export const createLunaServer = (
         const serializedMessage = rawMessage.toString();
         const registerMessage = parseAgentRegisterMessage(serializedMessage);
         if (registerMessage) {
-          devices.set(registerMessage.payload.id, {
-            ...registerMessage.payload,
+          const deviceId = normalizeWhitespace(registerMessage.payload.id);
+          const registerName = normalizeWhitespace(registerMessage.payload.name);
+          const registerHostname = normalizeWhitespace(
+            registerMessage.payload.hostname,
+          );
+          const aliasName = customDeviceAliases.get(deviceId);
+
+          devices.set(deviceId, {
+            id: deviceId,
+            name: aliasName ?? registerName,
+            hostname: registerHostname,
             status: "online",
+            capabilities: [...registerMessage.payload.capabilities],
           });
-          deviceSockets.set(registerMessage.payload.id, socket);
-          socketDeviceIds.set(socket, registerMessage.payload.id);
-          armHeartbeatTimeout(registerMessage.payload.id, socket);
+          deviceSockets.set(deviceId, socket);
+          socketDeviceIds.set(socket, deviceId);
+          armHeartbeatTimeout(deviceId, socket);
           return;
         }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { hostname as getHostname } from "node:os";
 import { join } from "node:path";
 import { createLunaServer } from "../../server/src/index";
 import {
@@ -71,15 +72,28 @@ describe("slice 9 - agent runtime", () => {
   });
 
   it("uses default runtime config when env vars are not provided", () => {
+    const localHostname = getHostname();
     const config = parseAgentRuntimeConfig({});
 
     expect(config).toEqual({
       serverUrl: "ws://127.0.0.1:4000",
       device: {
-        id: "local-agent",
-        name: "Local Agent",
-        hostname: "localhost"
+        id: localHostname,
+        name: localHostname,
+        hostname: localHostname
       }
+    });
+  });
+
+  it("uses hostname as fallback name when only hostname is provided", () => {
+    const config = parseAgentRuntimeConfig({
+      LUNA_AGENT_DEVICE_HOSTNAME: "my-host.local"
+    });
+
+    expect(config.device).toEqual({
+      id: getHostname(),
+      name: "my-host.local",
+      hostname: "my-host.local"
     });
   });
 

@@ -18,6 +18,7 @@ describe("dashboard data mapping", () => {
       {
         id: "server-principal",
         name: "Server Principal",
+        hostname: "server-principal.local",
         type: "server",
         status: "online",
         capabilities: ["notify", "set_volume"],
@@ -44,6 +45,7 @@ describe("dashboard data mapping", () => {
       {
         id: "notebook-2",
         name: "Notebook 2",
+        hostname: "notebook-2.local",
         type: "notebook",
         status: "online",
         capabilities: ["notify", "open_app", "set_volume", "play_media"],
@@ -83,6 +85,7 @@ describe("dashboard data mapping", () => {
       {
         id: "notebook-2",
         name: "Notebook 2",
+        hostname: "notebook-2.local",
         type: "notebook",
         status: "online",
         capabilities: ["notify", "open_app", "set_volume", "play_media"],
@@ -129,6 +132,7 @@ describe("dashboard data mapping", () => {
       {
         id: "notebook-2",
         name: "Notebook 2",
+        hostname: "notebook-2.local",
         type: "notebook",
         status: "online",
         capabilities: ["notify", "open_app", "set_volume", "play_media"],
@@ -187,6 +191,7 @@ describe("dashboard data mapping", () => {
       {
         id: "notebook-2",
         name: "Notebook 2",
+        hostname: "notebook-2.local",
         type: "notebook",
         status: "online",
         capabilities: ["notify", "open_app", "set_volume", "play_media"],
@@ -221,6 +226,7 @@ describe("dashboard data mapping", () => {
       {
         id: "notebook-2",
         name: "Notebook 2",
+        hostname: "notebook-2.local",
         type: "notebook",
         status: "online",
         capabilities: ["notify", "open_app", "set_volume", "play_media"]
@@ -228,6 +234,7 @@ describe("dashboard data mapping", () => {
       {
         id: "server-principal",
         name: "Server Principal",
+        hostname: "server-principal.local",
         type: "server",
         status: "offline",
         capabilities: ["notify", "open_app", "set_volume", "play_media"]

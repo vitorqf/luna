@@ -39,6 +39,7 @@ export const mapDevicesToUi = (devices: ServerDevice[]): Device[] =>
   devices.map((device) => ({
     id: device.id,
     name: device.name,
+    hostname: device.hostname,
     type: inferDeviceType(device),
     status: device.status,
     capabilities: [...device.capabilities],
