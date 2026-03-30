@@ -351,6 +351,21 @@ Evitar:
 - heartbeat de socket stale apos reconexao e ignorado
 - testes unitarios de protocol + integracao de presenca por heartbeat adicionados e verdes
 
+
+### Slice 21 - parser ampliado (Concluido)
+
+- parser agora aceita variacoes fixas de verbos/preposicoes para intents existentes (`open_app`, `notify`, `set_volume`, `play_media`)
+- `notify` e `play_media` suportam entrada com e sem aspas
+- separacao de device em `notify`/`play_media` sem aspas usa o ultimo `no|na|em`
+- regressao dos formatos anteriores mantida com testes unitarios e integracao via `POST /commands`
+
+### Slice 22 - autocomplete de device no web (Concluido)
+
+- `CommandComposer` recebe devices reais da pagina e nao usa mais lista fixa para sugestao de alvo
+- ao digitar contexto com `no|na|em`, web sugere apenas devices `online`
+- sugestoes suportam click, Enter, Tab e Escape com substituicao do fragmento de device no final da frase
+- helpers puros de sugestao/filtro/ordenacao cobertos por testes unitarios
+
 ---
 
 ## 11. Critérios de Conclusão por Slice
@@ -461,11 +476,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 20 concluido em 2026-03-29.
+Slice 22 concluido em 2026-03-29.
 
 Proximo passo recomendado:
 
--> Adicionar `lastSeen` por device (atualizado por heartbeat/close) e exibir no web para diagnostico de presenca
+-> Validar capability do device no server antes do dispatch (falha rapida com `unsupported_intent`)
 
 ## 19. Observação Final
 

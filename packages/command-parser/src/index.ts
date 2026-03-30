@@ -49,12 +49,61 @@ const normalizeWhitespace = (value: string): string =>
     .trim()
     .replace(/\s+/g, " ");
 
+const DEVICE_SEPARATOR_PATTERN = /^(no|na|em)$/i;
+
+const OPEN_APP_VERBS_PATTERN = "abrir|abre|iniciar|inicia|executar|executa";
+const NOTIFY_PREFIX_PATTERN =
+  "notificar|avisar|enviar\\s+notifica(?:cao|ção)|mandar\\s+notifica(?:cao|ção)";
+const PLAY_MEDIA_VERBS_PATTERN = "tocar|toque|reproduzir|reproduza";
+const SET_VOLUME_VERBS_PATTERN = "definir|ajustar|colocar|setar";
+
+const splitByLastDeviceSeparator = (
+  value: string
+): {
+  content: string;
+  targetDeviceName: string;
+} | null => {
+  const normalized = normalizeWhitespace(value);
+  if (!normalized) {
+    return null;
+  }
+
+  const tokens = normalized.split(" ");
+  for (let index = tokens.length - 2; index >= 1; index -= 1) {
+    if (!DEVICE_SEPARATOR_PATTERN.test(tokens[index] ?? "")) {
+      continue;
+    }
+
+    const content = tokens.slice(0, index).join(" ").trim();
+    const targetDeviceName = tokens.slice(index + 1).join(" ").trim();
+    if (!content || !targetDeviceName) {
+      return null;
+    }
+
+    return {
+      content,
+      targetDeviceName
+    };
+  }
+
+  return null;
+};
+
 export const parseCommand = (rawText: string): ParsedCommand | null => {
-  const trimmedText = rawText.trim();
-  const notifyMatch = trimmedText.match(/^notificar\s+"([^"]*)"\s+no\s+(.+)$/i);
-  if (notifyMatch) {
-    const message = notifyMatch[1]?.trim();
-    const targetDeviceName = normalizeWhitespace(notifyMatch[2] ?? "");
+  const normalizedText = normalizeWhitespace(rawText);
+  if (!normalizedText) {
+    return null;
+  }
+
+  const notifyQuotedMatch = normalizedText.match(
+    new RegExp(
+      `^(?:${NOTIFY_PREFIX_PATTERN})\\s+"([^"]*)"\\s+(?:no|na|em)\\s+(.+)$`,
+      "i"
+    )
+  );
+  if (notifyQuotedMatch) {
+    const message = notifyQuotedMatch[1]?.trim();
+    const targetDeviceName = normalizeWhitespace(notifyQuotedMatch[2] ?? "");
 
     if (!message || !targetDeviceName) {
       return null;
@@ -70,10 +119,34 @@ export const parseCommand = (rawText: string): ParsedCommand | null => {
     };
   }
 
-  const playMediaMatch = trimmedText.match(/^tocar\s+"([^"]*)"\s+no\s+(.+)$/i);
-  if (playMediaMatch) {
-    const mediaQuery = playMediaMatch[1]?.trim();
-    const targetDeviceName = normalizeWhitespace(playMediaMatch[2] ?? "");
+  const notifyUnquotedMatch = normalizedText.match(
+    new RegExp(`^(?:${NOTIFY_PREFIX_PATTERN})\\s+(.+)$`, "i")
+  );
+  if (notifyUnquotedMatch) {
+    const split = splitByLastDeviceSeparator(notifyUnquotedMatch[1] ?? "");
+    if (!split) {
+      return null;
+    }
+
+    return {
+      intent: NOTIFY_INTENT,
+      targetDeviceName: split.targetDeviceName,
+      params: {
+        title: "Luna",
+        message: split.content
+      }
+    };
+  }
+
+  const playMediaQuotedMatch = normalizedText.match(
+    new RegExp(
+      `^(?:${PLAY_MEDIA_VERBS_PATTERN})\\s+"([^"]*)"\\s+(?:no|na|em)\\s+(.+)$`,
+      "i"
+    )
+  );
+  if (playMediaQuotedMatch) {
+    const mediaQuery = playMediaQuotedMatch[1]?.trim();
+    const targetDeviceName = normalizeWhitespace(playMediaQuotedMatch[2] ?? "");
 
     if (!mediaQuery || !targetDeviceName) {
       return null;
@@ -88,13 +161,33 @@ export const parseCommand = (rawText: string): ParsedCommand | null => {
     };
   }
 
-  const normalizedText = normalizeWhitespace(rawText);
+  const playMediaUnquotedMatch = normalizedText.match(
+    new RegExp(`^(?:${PLAY_MEDIA_VERBS_PATTERN})\\s+(.+)$`, "i")
+  );
+  if (playMediaUnquotedMatch) {
+    const split = splitByLastDeviceSeparator(playMediaUnquotedMatch[1] ?? "");
+    if (!split) {
+      return null;
+    }
+
+    return {
+      intent: PLAY_MEDIA_INTENT,
+      targetDeviceName: split.targetDeviceName,
+      params: {
+        mediaQuery: split.content
+      }
+    };
+  }
+
   const setVolumeMatch = normalizedText.match(
-    /^definir\s+volume\s+para\s+(\d{1,3})(?:\s*%)?\s+no\s+(.+)$/i
+    new RegExp(
+      `^(?:${SET_VOLUME_VERBS_PATTERN})\\s+(?:o\\s+)?volume\\s+(?:para|em)\\s+(\\d{1,3})(?:\\s*%)?\\s+(?:no|na|em)\\s+(.+)$`,
+      "i"
+    )
   );
   if (setVolumeMatch) {
     const volumePercent = Number.parseInt(setVolumeMatch[1] ?? "", 10);
-    const targetDeviceName = setVolumeMatch[2]?.trim();
+    const targetDeviceName = normalizeWhitespace(setVolumeMatch[2] ?? "");
     if (
       !targetDeviceName ||
       !Number.isInteger(volumePercent) ||
@@ -113,14 +206,19 @@ export const parseCommand = (rawText: string): ParsedCommand | null => {
     };
   }
 
-  const openAppMatch = normalizedText.match(/^abrir\s+(.+?)\s+no\s+(.+)$/i);
+  const openAppMatch = normalizedText.match(
+    new RegExp(
+      `^(?:${OPEN_APP_VERBS_PATTERN})\\s+(?:(?:o|a)\\s+)?(.+?)\\s+(?:no|na|em)\\s+(.+)$`,
+      "i"
+    )
+  );
 
   if (!openAppMatch) {
     return null;
   }
 
-  const appName = openAppMatch[1]?.trim();
-  const targetDeviceName = openAppMatch[2]?.trim();
+  const appName = normalizeWhitespace(openAppMatch[1] ?? "");
+  const targetDeviceName = normalizeWhitespace(openAppMatch[2] ?? "");
 
   if (!appName || !targetDeviceName) {
     return null;

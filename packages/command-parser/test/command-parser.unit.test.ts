@@ -37,8 +37,15 @@ describe("slice 3 - command parser", () => {
     });
   });
 
-  it("returns null for notify phrase without double quotes", () => {
-    expect(parseCommand("Notificar Backup concluido no Notebook 2")).toBeNull();
+  it("parses notify phrase without double quotes", () => {
+    expect(parseCommand("Notificar Backup concluido no Notebook 2")).toEqual({
+      intent: "notify",
+      targetDeviceName: "Notebook 2",
+      params: {
+        title: "Luna",
+        message: "Backup concluido"
+      }
+    });
   });
 
   it("returns null for notify phrase with empty quoted message", () => {
@@ -103,8 +110,14 @@ describe("slice 3 - command parser", () => {
     });
   });
 
-  it("returns null for play_media phrase without double quotes", () => {
-    expect(parseCommand("Tocar lo-fi no Notebook 2")).toBeNull();
+  it("parses play_media phrase without double quotes", () => {
+    expect(parseCommand("Tocar lo-fi no Notebook 2")).toEqual({
+      intent: "play_media",
+      targetDeviceName: "Notebook 2",
+      params: {
+        mediaQuery: "lo-fi"
+      }
+    });
   });
 
   it("returns null for play_media phrase with empty quoted media", () => {
@@ -113,5 +126,57 @@ describe("slice 3 - command parser", () => {
 
   it("returns null for play_media phrase without target device", () => {
     expect(parseCommand('Tocar "lo-fi" no   ')).toBeNull();
+  });
+
+  it("parses open_app with synonym verb, optional article and `em` separator", () => {
+    expect(parseCommand("Abre o Spotify em Notebook 2")).toEqual({
+      intent: "open_app",
+      targetDeviceName: "Notebook 2",
+      params: {
+        appName: "Spotify"
+      }
+    });
+  });
+
+  it("parses notify without quotes using fixed synonym prefix", () => {
+    expect(parseCommand("Enviar notificacao Backup concluido no Notebook 2")).toEqual({
+      intent: "notify",
+      targetDeviceName: "Notebook 2",
+      params: {
+        title: "Luna",
+        message: "Backup concluido"
+      }
+    });
+  });
+
+  it("parses play_media without quotes using fixed synonym verb", () => {
+    expect(parseCommand("Reproduzir lo-fi em Notebook 2")).toEqual({
+      intent: "play_media",
+      targetDeviceName: "Notebook 2",
+      params: {
+        mediaQuery: "lo-fi"
+      }
+    });
+  });
+
+  it("parses set_volume with synonym verb and `em` target separator", () => {
+    expect(parseCommand("Ajustar o volume para 35 em Notebook 2")).toEqual({
+      intent: "set_volume",
+      targetDeviceName: "Notebook 2",
+      params: {
+        volumePercent: 35
+      }
+    });
+  });
+
+  it("uses the last device separator for unquoted notify to reduce ambiguity", () => {
+    expect(parseCommand("Avisar backup no servidor no Notebook 2")).toEqual({
+      intent: "notify",
+      targetDeviceName: "Notebook 2",
+      params: {
+        title: "Luna",
+        message: "backup no servidor"
+      }
+    });
   });
 });
