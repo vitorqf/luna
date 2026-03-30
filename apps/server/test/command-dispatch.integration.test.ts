@@ -169,4 +169,63 @@ describe("slice 4 - command dispatch", () => {
       await server.stop();
     }
   });
+
+  it("keeps ack flow when onCommand callback throws", async () => {
+    const server = createLunaServer({ host: "127.0.0.1", port: 0 });
+    await server.start();
+
+    const onCommand = vi.fn(async () => {
+      throw new Error("onCommand failure");
+    });
+    const executeNotify = vi.fn(async () => undefined);
+    let agentConnection: { disconnect: () => Promise<void> } | undefined;
+
+    try {
+      agentConnection = await connectAgent({
+        serverUrl: `ws://127.0.0.1:${server.getPort()}`,
+        device: {
+          id: "notebook-2",
+          name: "Notebook 2",
+          hostname: "notebook-2.local"
+        },
+        onCommand,
+        executeNotify
+      });
+
+      await waitForAssertion(() => {
+        expect(server.getRegisteredDevices()).toHaveLength(1);
+      });
+
+      const ack = await server.dispatchCommand({
+        targetDeviceId: "notebook-2",
+        intent: "notify",
+        params: {
+          title: "Luna",
+          message: "Slice 39"
+        }
+      });
+
+      expect(ack).toMatchObject({
+        commandId: expect.any(String),
+        targetDeviceId: "notebook-2",
+        status: "success"
+      });
+
+      expect(executeNotify).toHaveBeenCalledTimes(1);
+      expect(onCommand).toHaveBeenCalledWith({
+        commandId: ack.commandId,
+        intent: "notify",
+        params: {
+          title: "Luna",
+          message: "Slice 39"
+        }
+      });
+    } finally {
+      if (agentConnection) {
+        await agentConnection.disconnect();
+      }
+
+      await server.stop();
+    }
+  });
 });

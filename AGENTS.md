@@ -493,6 +493,14 @@ Evitar:
 - smoke test do pacote isolado fora do monorepo valida bootstrap de `.env` e conexao real do agent ao server
 - documentacao operacional atualizada com fluxo de build e primeiro uso do pacote do agent
 
+### Slice 39 - dispatcher de intents do agent via strategy registry (Concluido)
+
+- execucao de intents no agent foi extraida de `apps/agent/src/index.ts` para o novo modulo `apps/agent/src/intent-dispatcher.ts`
+- novo dispatcher aplica strategy registry tipado para `notify`, `open_app`, `set_volume` e `play_media`, preservando `ack` canonico (`success|failed` com `invalid_params|unsupported_intent|execution_error`)
+- fluxo de `connectAgent` foi mantido, incluindo ordem de processamento (executa intent, chama `onCommand`, envia `command.ack` no `finally`)
+- erro de callback em `onCommand` continua sem quebrar envio de `ack`, coberto por novo teste de integracao em `command-dispatch.integration.test.ts`
+- testes unitarios do dispatcher adicionados em `apps/agent/test/intent-dispatcher.unit.test.ts` e regressao minima de dispatch/execucao validada verde
+
 ## 11. Critérios de Conclusão por Slice
 
 Cada slice deve:
@@ -601,11 +609,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 38 concluido em 2026-03-30.
+Slice 39 concluido em 2026-03-30.
 
 Proximo passo recomendado:
 
--> a definir
+-> Slice 40 - parser em pipeline de regras (chain)
 
 ## 19. ObservaÃ§Ã£o Final
 
