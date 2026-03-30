@@ -30,3 +30,9 @@ export interface SystemStats {
   commandsExecuted: number;
   recentFailures: number;
 }
+
+export interface DiscoveredAgent {
+  id: string;
+  hostname: string;
+  capabilities: DeviceCapability[];
+}

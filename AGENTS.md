@@ -375,6 +375,15 @@ Evitar:
 - web ganhou edicao inline de apelido no card de device e chamada real de rename via luna-api, com refresh apos salvar
 - testes de agent/server/web adicionados e regressao completa verde
 
+### Slice 24 - descoberta de agents na rede (descobrir + aprovar) (Concluido)
+
+- server recebe anuncios UDP `agent.discovery.announce` e mantem lista em memoria de agents descobertos
+- novos endpoints: `GET /discovery/agents` e `POST /discovery/agents/:id/approve`
+- aprovacao cria device offline usando `hostname` como nome inicial (alias depois pode ser editado no web)
+- agent passa a anunciar disponibilidade via UDP periodico para host/porta do server
+- web ganhou painel de discovery com lista pendente e botao de aprovacao
+- testes de protocol, agent announcer, integracao server e API web adicionados; regressao completa verde
+
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -483,11 +492,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 23 concluido em 2026-03-29.
+Slice 24 concluido em 2026-03-29.
 
 Proximo passo recomendado:
 
--> Slice 24: descoberta de agents na rede em modo "descobrir + aprovar", reaproveitando `hostname` como identificacao inicial
+-> Slice 25: validar capability antes do dispatch e retornar falha rapida `unsupported_intent` para comando nao suportado no device
 
 ## 19. Observa√ß√£o Final
 

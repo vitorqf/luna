@@ -1,4 +1,4 @@
-import type { Command, Device } from "@luna/shared-types";
+import type { Command, Device, DiscoveredAgent } from "@luna/shared-types";
 
 export interface SubmitCommandAck {
   commandId: string;
@@ -43,8 +43,10 @@ const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
 export interface LunaApiClient {
   fetchDevices: () => Promise<Device[]>;
   fetchCommands: () => Promise<Command[]>;
+  fetchDiscoveredAgents: () => Promise<DiscoveredAgent[]>;
   submitCommand: (rawText: string) => Promise<SubmitCommandAck>;
   renameDevice: (deviceId: string, name: string) => Promise<Device>;
+  approveDiscoveredAgent: (discoveredAgentId: string) => Promise<Device>;
 }
 
 export const createLunaApiClient = (baseUrl = resolveBaseUrl()): LunaApiClient => {
@@ -53,6 +55,8 @@ export const createLunaApiClient = (baseUrl = resolveBaseUrl()): LunaApiClient =
   return {
     fetchDevices: () => fetchJson<Device[]>(`${normalizedBaseUrl}/devices`),
     fetchCommands: () => fetchJson<Command[]>(`${normalizedBaseUrl}/commands`),
+    fetchDiscoveredAgents: () =>
+      fetchJson<DiscoveredAgent[]>(`${normalizedBaseUrl}/discovery/agents`),
     submitCommand: (rawText: string) =>
       fetchJson<SubmitCommandAck>(`${normalizedBaseUrl}/commands`, {
         method: "POST",
@@ -68,6 +72,15 @@ export const createLunaApiClient = (baseUrl = resolveBaseUrl()): LunaApiClient =
           "content-type": "application/json"
         },
         body: JSON.stringify({ name })
-      })
+      }),
+    approveDiscoveredAgent: (discoveredAgentId: string) => {
+      const endpoint = `${normalizedBaseUrl}/discovery/agents/${encodeURIComponent(
+        discoveredAgentId
+      )}/approve`;
+
+      return fetchJson<Device>(endpoint, {
+        method: "POST"
+      });
+    }
   };
 };

@@ -19,6 +19,12 @@ export interface Device {
   capabilities: DeviceCapability[];
 }
 
+export interface DiscoveredAgent {
+  id: string;
+  hostname: string;
+  capabilities: DeviceCapability[];
+}
+
 export type CommandStatus = "success" | "failed";
 export type CommandFailureReason =
   | "invalid_params"

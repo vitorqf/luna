@@ -145,4 +145,64 @@ describe("luna api client", () => {
       client.submitCommand("Comando invalido")
     ).rejects.toThrowError("Unable to parse command.");
   });
+
+  it("fetches discovered agents from GET /discovery/agents", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        makeJsonResponse([
+          {
+            id: "mini-pc-1",
+            hostname: "mini-pc-1.local",
+            capabilities: ["notify"]
+          }
+        ])
+      );
+
+    const client = createLunaApiClient("http://127.0.0.1:4444");
+    const discoveredAgents = await client.fetchDiscoveredAgents();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:4444/discovery/agents",
+      undefined
+    );
+    expect(discoveredAgents).toEqual([
+      {
+        id: "mini-pc-1",
+        hostname: "mini-pc-1.local",
+        capabilities: ["notify"]
+      }
+    ]);
+  });
+
+  it("approves discovered agent via POST /discovery/agents/:id/approve", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        makeJsonResponse({
+          id: "mini-pc-1",
+          name: "mini-pc-1.local",
+          hostname: "mini-pc-1.local",
+          status: "offline",
+          capabilities: ["notify"]
+        })
+      );
+
+    const client = createLunaApiClient("http://127.0.0.1:4444");
+    const device = await client.approveDiscoveredAgent("mini-pc-1");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:4444/discovery/agents/mini-pc-1/approve",
+      {
+        method: "POST"
+      }
+    );
+    expect(device).toEqual({
+      id: "mini-pc-1",
+      name: "mini-pc-1.local",
+      hostname: "mini-pc-1.local",
+      status: "offline",
+      capabilities: ["notify"]
+    });
+  });
 });

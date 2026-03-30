@@ -4,6 +4,8 @@ export const protocolBootstrapReady = true;
 
 export const AGENT_REGISTER_MESSAGE_TYPE = "agent.register" as const;
 export const AGENT_HEARTBEAT_MESSAGE_TYPE = "agent.heartbeat" as const;
+export const AGENT_DISCOVERY_ANNOUNCE_MESSAGE_TYPE =
+  "agent.discovery.announce" as const;
 export const COMMAND_DISPATCH_MESSAGE_TYPE = "command.dispatch" as const;
 export const COMMAND_ACK_MESSAGE_TYPE = "command.ack" as const;
 export const COMMAND_ACK_STATUS_SUCCESS = "success" as const;
@@ -44,6 +46,17 @@ export interface AgentHeartbeatPayload {
 export interface AgentHeartbeatMessage {
   type: typeof AGENT_HEARTBEAT_MESSAGE_TYPE;
   payload: AgentHeartbeatPayload;
+}
+
+export interface AgentDiscoveryAnnouncePayload {
+  id: string;
+  hostname: string;
+  capabilities: DeviceCapability[];
+}
+
+export interface AgentDiscoveryAnnounceMessage {
+  type: typeof AGENT_DISCOVERY_ANNOUNCE_MESSAGE_TYPE;
+  payload: AgentDiscoveryAnnouncePayload;
 }
 
 export interface CommandDispatchPayload {
@@ -94,6 +107,13 @@ export const createAgentHeartbeatMessage = (
   payload: AgentHeartbeatPayload
 ): AgentHeartbeatMessage => ({
   type: AGENT_HEARTBEAT_MESSAGE_TYPE,
+  payload
+});
+
+export const createAgentDiscoveryAnnounceMessage = (
+  payload: AgentDiscoveryAnnouncePayload
+): AgentDiscoveryAnnounceMessage => ({
+  type: AGENT_DISCOVERY_ANNOUNCE_MESSAGE_TYPE,
   payload
 });
 
@@ -151,6 +171,29 @@ export const isAgentHeartbeatMessage = (
   }
 
   return Object.keys(value.payload).length === 0;
+};
+
+export const isAgentDiscoveryAnnounceMessage = (
+  value: unknown
+): value is AgentDiscoveryAnnounceMessage => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  if (value.type !== AGENT_DISCOVERY_ANNOUNCE_MESSAGE_TYPE) {
+    return false;
+  }
+
+  if (!isRecord(value.payload)) {
+    return false;
+  }
+
+  return (
+    isNonEmptyString(value.payload.id) &&
+    isNonEmptyString(value.payload.hostname) &&
+    Array.isArray(value.payload.capabilities) &&
+    value.payload.capabilities.every(isDeviceCapability)
+  );
 };
 
 export const isCommandDispatchMessage = (
@@ -224,6 +267,17 @@ export const parseAgentHeartbeatMessage = (
   try {
     const parsed = JSON.parse(serializedMessage) as unknown;
     return isAgentHeartbeatMessage(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+export const parseAgentDiscoveryAnnounceMessage = (
+  serializedMessage: string
+): AgentDiscoveryAnnounceMessage | null => {
+  try {
+    const parsed = JSON.parse(serializedMessage) as unknown;
+    return isAgentDiscoveryAnnounceMessage(parsed) ? parsed : null;
   } catch {
     return null;
   }

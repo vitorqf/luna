@@ -8,6 +8,7 @@ import {
   type CommandAckPayload
 } from "@luna/protocol";
 import type { DeviceCapability } from "@luna/shared-types";
+import { createDiscoveryAnnouncer } from "./discovery-announcer";
 import { createNotifyLauncher } from "./notify-launcher";
 import { createOpenAppLauncher } from "./open-app-launcher";
 import { createPlayMediaLauncher } from "./play-media-launcher";
@@ -34,6 +35,7 @@ export interface ConnectAgentInput {
   serverUrl: string;
   device: AgentIdentity;
   heartbeatIntervalMs?: number;
+  discoveryIntervalMs?: number;
   onCommand?: (command: ReceivedCommand) => void | Promise<void>;
   executeNotify?: (
     notification: LocalNotification
@@ -160,6 +162,8 @@ const executeLocalPlayMedia = async (
   playMedia: LocalPlayMedia
 ): Promise<void> => launchPlayMedia(playMedia);
 
+const startDiscoveryAnnouncer = createDiscoveryAnnouncer();
+
 const getErrorReason = (error: unknown): string => {
   if (error instanceof Error && error.message.trim().length > 0) {
     return error.message;
@@ -189,11 +193,17 @@ export const connectAgent = async (
   const registerCapabilities =
     input.device.capabilities ?? SUPPORTED_CAPABILITIES;
   const heartbeatIntervalMs = input.heartbeatIntervalMs ?? 5_000;
+  const discoveryIntervalMs = input.discoveryIntervalMs ?? 5_000;
   const executeNotify = input.executeNotify ?? executeLocalNotify;
   const executeOpenApp = input.executeOpenApp ?? executeLocalOpenApp;
   const executeSetVolume = input.executeSetVolume ?? executeLocalSetVolume;
   const executePlayMedia = input.executePlayMedia ?? executeLocalPlayMedia;
   let heartbeatInterval: NodeJS.Timeout | undefined;
+  let discoveryAnnouncer:
+    | {
+        stop: () => void;
+      }
+    | undefined;
 
   const sendSerializedMessage = async (
     serializedMessage: string
@@ -367,6 +377,23 @@ export const connectAgent = async (
     )
   );
 
+  try {
+    discoveryAnnouncer = startDiscoveryAnnouncer({
+      serverUrl: input.serverUrl,
+      device: {
+        id: input.device.id,
+        hostname: input.device.hostname,
+        capabilities: [...registerCapabilities]
+      },
+      intervalMs: discoveryIntervalMs
+    });
+  } catch (error) {
+    console.error("[luna][discovery][error]", {
+      deviceId: input.device.id,
+      reason: getErrorReason(error)
+    });
+  }
+
   if (heartbeatIntervalMs > 0) {
     heartbeatInterval = setInterval(() => {
       if (socket.readyState !== WebSocket.OPEN) {
@@ -380,12 +407,15 @@ export const connectAgent = async (
   }
 
   socket.on("close", () => {
-    if (!heartbeatInterval) {
-      return;
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = undefined;
     }
 
-    clearInterval(heartbeatInterval);
-    heartbeatInterval = undefined;
+    if (discoveryAnnouncer) {
+      discoveryAnnouncer.stop();
+      discoveryAnnouncer = undefined;
+    }
   });
 
   return {
@@ -397,6 +427,11 @@ export const connectAgent = async (
       if (heartbeatInterval) {
         clearInterval(heartbeatInterval);
         heartbeatInterval = undefined;
+      }
+
+      if (discoveryAnnouncer) {
+        discoveryAnnouncer.stop();
+        discoveryAnnouncer = undefined;
       }
 
       await new Promise<void>((resolve) => {

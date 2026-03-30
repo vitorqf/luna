@@ -1,13 +1,15 @@
-import type { Command, Device } from "@luna/shared-types";
+import type { Command, Device, DiscoveredAgent } from "@luna/shared-types";
 import { parseCommand } from "@luna/command-parser";
 import {
   createCommandDispatchMessage,
+  parseAgentDiscoveryAnnounceMessage,
   parseAgentHeartbeatMessage,
   parseAgentRegisterMessage,
   parseCommandAckMessage,
   type CommandAckPayload,
 } from "@luna/protocol";
 import { randomUUID } from "node:crypto";
+import { createSocket, type Socket } from "node:dgram";
 import {
   createServer,
   type IncomingMessage,
@@ -30,6 +32,7 @@ export interface LunaServer {
   stop: () => Promise<void>;
   getPort: () => number;
   getRegisteredDevices: () => Device[];
+  getDiscoveredAgents: () => DiscoveredAgent[];
   getCommandHistory: () => Command[];
   dispatchCommand: (
     input: DispatchCommandInput,
@@ -114,6 +117,7 @@ export const createLunaServer = (
   options: LunaServerOptions = {},
 ): LunaServer => {
   const devices = new Map<string, Device>();
+  const discoveredAgents = new Map<string, DiscoveredAgent>();
   const customDeviceAliases = new Map<string, string>();
   const commandHistory: Command[] = [];
   const deviceSockets = new Map<string, WebSocket>();
@@ -124,9 +128,12 @@ export const createLunaServer = (
   let port = options.port ?? 0;
   let httpServer: HttpServer | undefined;
   let webSocketServer: WebSocketServer | undefined;
+  let discoverySocket: Socket | undefined;
   const heartbeatTimeouts = new Map<string, NodeJS.Timeout>();
 
   const getRegisteredDevices = (): Device[] => Array.from(devices.values());
+  const getDiscoveredAgents = (): DiscoveredAgent[] =>
+    Array.from(discoveredAgents.values());
   const getCommandHistory = (): Command[] => [...commandHistory];
 
   const clearHeartbeatTimeout = (deviceId: string): void => {
@@ -211,6 +218,21 @@ export const createLunaServer = (
 
   const extractDeviceIdFromPatchRoute = (requestUrl: string): string | null => {
     const match = requestUrl.match(/^\/devices\/([^/]+)$/);
+    if (!match) {
+      return null;
+    }
+
+    try {
+      return decodeURIComponent(match[1] ?? "");
+    } catch {
+      return null;
+    }
+  };
+
+  const extractDiscoveredAgentIdFromApproveRoute = (
+    requestUrl: string,
+  ): string | null => {
+    const match = requestUrl.match(/^\/discovery\/agents\/([^/]+)\/approve$/);
     if (!match) {
       return null;
     }
@@ -316,6 +338,43 @@ export const createLunaServer = (
     sendJson(response, 200, updatedDevice);
   };
 
+  const handleApproveDiscoveredAgent = (
+    response: ServerResponse,
+    discoveredAgentId: string,
+  ): void => {
+    const normalizedDiscoveredAgentId = normalizeWhitespace(discoveredAgentId);
+    const discoveredAgent = discoveredAgents.get(normalizedDiscoveredAgentId);
+    if (!discoveredAgent) {
+      sendJson(response, 404, { message: "Discovered agent not found." });
+      return;
+    }
+
+    const existingDevice = devices.get(normalizedDiscoveredAgentId);
+    if (existingDevice) {
+      discoveredAgents.delete(normalizedDiscoveredAgentId);
+      sendJson(response, 200, existingDevice);
+      return;
+    }
+
+    const approvedName = normalizeWhitespace(discoveredAgent.hostname);
+    if (isDeviceNameTaken(approvedName, normalizedDiscoveredAgentId)) {
+      sendJson(response, 409, { message: "Device name is already in use." });
+      return;
+    }
+
+    const approvedDevice: Device = {
+      id: normalizedDiscoveredAgentId,
+      name: approvedName,
+      hostname: normalizeWhitespace(discoveredAgent.hostname),
+      status: "offline",
+      capabilities: [...discoveredAgent.capabilities],
+    };
+
+    devices.set(normalizedDiscoveredAgentId, approvedDevice);
+    discoveredAgents.delete(normalizedDiscoveredAgentId);
+    sendJson(response, 200, approvedDevice);
+  };
+
   const handleRequest = (
     request: IncomingMessage,
     response: ServerResponse,
@@ -335,6 +394,11 @@ export const createLunaServer = (
       return;
     }
 
+    if (request.method === "GET" && request.url === "/discovery/agents") {
+      sendJson(response, 200, getDiscoveredAgents());
+      return;
+    }
+
     if (request.method === "POST" && request.url === "/commands") {
       void handleSubmitCommand(request, response);
       return;
@@ -344,6 +408,16 @@ export const createLunaServer = (
       const deviceId = extractDeviceIdFromPatchRoute(request.url);
       if (deviceId) {
         void handleRenameDevice(request, response, deviceId);
+        return;
+      }
+    }
+
+    if (request.method === "POST" && isNonEmptyString(request.url)) {
+      const discoveredAgentId = extractDiscoveredAgentIdFromApproveRoute(
+        request.url,
+      );
+      if (discoveredAgentId) {
+        handleApproveDiscoveredAgent(response, discoveredAgentId);
         return;
       }
     }
@@ -495,6 +569,51 @@ export const createLunaServer = (
     }
 
     port = (address as AddressInfo).port;
+
+    discoverySocket = createSocket("udp4");
+    discoverySocket.on("message", (messageBuffer) => {
+      const announceMessage = parseAgentDiscoveryAnnounceMessage(
+        messageBuffer.toString("utf-8"),
+      );
+      if (!announceMessage) {
+        return;
+      }
+
+      const discoveredAgentId = normalizeWhitespace(
+        announceMessage.payload.id,
+      );
+      if (devices.has(discoveredAgentId)) {
+        discoveredAgents.delete(discoveredAgentId);
+        return;
+      }
+
+      discoveredAgents.set(discoveredAgentId, {
+        id: discoveredAgentId,
+        hostname: normalizeWhitespace(announceMessage.payload.hostname),
+        capabilities: [...announceMessage.payload.capabilities],
+      });
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      if (!discoverySocket) {
+        reject(new Error("Discovery socket is not initialized."));
+        return;
+      }
+
+      const handleListening = () => {
+        discoverySocket?.off("error", handleError);
+        resolve();
+      };
+
+      const handleError = (error: Error) => {
+        discoverySocket?.off("listening", handleListening);
+        reject(error);
+      };
+
+      discoverySocket.once("listening", handleListening);
+      discoverySocket.once("error", handleError);
+      discoverySocket.bind(port, host);
+    });
   };
 
   const stop = async (): Promise<void> => {
@@ -517,8 +636,10 @@ export const createLunaServer = (
 
     const currentHttpServer = httpServer;
     const currentWebSocketServer = webSocketServer;
+    const currentDiscoverySocket = discoverySocket;
     httpServer = undefined;
     webSocketServer = undefined;
+    discoverySocket = undefined;
 
     await new Promise<void>((resolve, reject) => {
       currentWebSocketServer.close((error) => {
@@ -541,6 +662,12 @@ export const createLunaServer = (
         resolve();
       });
     });
+
+    if (currentDiscoverySocket) {
+      await new Promise<void>((resolve) => {
+        currentDiscoverySocket.close(() => resolve());
+      });
+    }
   };
 
   const dispatchCommand = async (
@@ -598,6 +725,7 @@ export const createLunaServer = (
     stop,
     getPort: () => port,
     getRegisteredDevices,
+    getDiscoveredAgents,
     getCommandHistory,
     dispatchCommand,
   };

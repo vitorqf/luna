@@ -6,6 +6,7 @@ import { Header } from "@/components/luna/header";
 import { CommandComposer } from "@/components/luna/command-composer";
 import { CommandFeed } from "@/components/luna/command-feed";
 import { DevicesPanel } from "@/components/luna/devices-panel";
+import { DiscoveryPanel } from "@/components/luna/discovery-panel";
 import { StatsOverview } from "@/components/luna/stats-overview";
 import { ActivityList } from "@/components/luna/activity-list";
 import { createLunaApiClient } from "@/lib/luna-api";
@@ -15,7 +16,12 @@ import {
   mapDevicesToUi
 } from "@/lib/dashboard-data";
 import { executeDeviceRenameFlow } from "@/lib/device-rename-flow";
-import type { CommandResult, Device, SystemStats } from "@/lib/types";
+import type {
+  CommandResult,
+  Device,
+  DiscoveredAgent,
+  SystemStats
+} from "@/lib/types";
 
 const lunaApiClient = createLunaApiClient();
 
@@ -56,18 +62,27 @@ export default function LunaDashboard() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [commands, setCommands] = useState<CommandResult[]>([]);
   const [stats, setStats] = useState<SystemStats>(emptyStats);
+  const [discoveredAgents, setDiscoveredAgents] = useState<DiscoveredAgent[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const refreshDashboard = useCallback(async (): Promise<void> => {
-    const [devicesPayload, commandsPayload] = await Promise.all([
+    const [devicesPayload, commandsPayload, discoveredAgentsPayload] = await Promise.all([
       lunaApiClient.fetchDevices(),
-      lunaApiClient.fetchCommands()
+      lunaApiClient.fetchCommands(),
+      lunaApiClient.fetchDiscoveredAgents()
     ]);
     const snapshot = applySnapshot(devicesPayload, commandsPayload);
     setDevices(snapshot.devices);
     setCommands(snapshot.commands);
     setStats(snapshot.stats);
+    setDiscoveredAgents(
+      discoveredAgentsPayload.map((agent) => ({
+        id: agent.id,
+        hostname: agent.hostname,
+        capabilities: [...agent.capabilities]
+      }))
+    );
   }, []);
 
   useEffect(() => {
@@ -164,6 +179,21 @@ export default function LunaDashboard() {
     [refreshDashboard]
   );
 
+  const handleApproveDiscoveredAgent = useCallback(
+    async (discoveredAgentId: string): Promise<void> => {
+      try {
+        await lunaApiClient.approveDiscoveredAgent(discoveredAgentId);
+        await refreshDashboard();
+        setLoadError(null);
+      } catch (error) {
+        const errorMessage = formatCommandError(error);
+        setLoadError(errorMessage);
+        throw new Error(errorMessage);
+      }
+    },
+    [refreshDashboard]
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <Header devicesOnline={stats.devicesOnline} totalDevices={stats.totalDevices} />
@@ -188,6 +218,10 @@ export default function LunaDashboard() {
 
           {/* Sidebar - Right panel */}
           <div className="space-y-6">
+            <DiscoveryPanel
+              discoveredAgents={discoveredAgents}
+              onApprove={handleApproveDiscoveredAgent}
+            />
             <DevicesPanel
               devices={devices}
               onRenameDevice={handleRenameDevice}
