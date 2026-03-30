@@ -220,9 +220,20 @@ export const createLunaServer = (
           return;
         }
 
-        if (deviceSockets.get(deviceId) === socket) {
-          deviceSockets.delete(deviceId);
+        if (deviceSockets.get(deviceId) !== socket) {
+          return;
         }
+
+        deviceSockets.delete(deviceId);
+        const device = devices.get(deviceId);
+        if (!device) {
+          return;
+        }
+
+        devices.set(deviceId, {
+          ...device,
+          status: "offline",
+        });
       });
 
       socket.on("message", (rawMessage) => {

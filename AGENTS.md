@@ -325,6 +325,14 @@ Evitar:
 - contratos de tipos (`protocol` e `shared-types`) tipados com uniao de reasons canonicos
 - testes de integracao server/agent, `POST /commands`, protocol e web atualizados e verdes
 
+### Slice 18 - presenca real de device + reconexao segura (Concluido)
+
+- server marca device como `offline` quando o socket ativo fecha, mantendo o device cadastrado
+- reconnect com mesmo `device.id` volta status para `online` e atualiza metadados do device
+- fechamento de socket antigo apos reconexao nao derruba status do socket ativo
+- `dispatchCommand` para device offline continua falhando como `not connected`
+- testes de integracao de presenca (estado interno e `GET /devices`) adicionados e verdes
+
 ---
 
 ## 11. Critérios de Conclusão por Slice
@@ -434,11 +442,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 17 concluido em 2026-03-29.
+Slice 18 concluido em 2026-03-29.
 
 Proximo passo recomendado:
 
--> Introduzir telemetria basica de execucao por intent/device (contadores de sucesso/falha e ultimo reason) para observabilidade MVP
+-> Introduzir heartbeat leve entre agent e server para reduzir falso online em quedas abruptas de rede
 
 ## 19. Observação Final
 
