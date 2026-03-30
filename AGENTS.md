@@ -405,6 +405,12 @@ Evitar:
 - index.ts passou a delegar para handlers dedicados, mantendo contratos e respostas
 - regressao validada com testes de integracao do server verdes
 
+### Slice 28 - modularizacao do fluxo WebSocket do server (Concluido)
+
+- fluxo de conexao e mensagens WebSocket (register, heartbeat e command ack) foi extraido de apps/server/src/index.ts
+- novo modulo apps/server/src/websocket-connection-handlers.ts centraliza regras de presenca e processamento de ack
+- start() no index.ts ficou mais enxuto, apenas fazendo o wiring do servidor e delegando handlers
+- regressao validada com testes de integracao do server verdes
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -513,11 +519,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 27 concluido em 2026-03-30.
+Slice 28 concluido em 2026-03-30.
 
 Proximo passo recomendado:
 
--> Slice 28: extrair fluxo de WebSocket (register/heartbeat/ack) para modulo dedicado e reduzir complexidade do start()
+-> Slice 29: extrair dispatch e ciclo de pending acks para um modulo dedicado, reduzindo responsabilidades de index.ts
 
 ## 19. Observa√ß√£o Final
 
