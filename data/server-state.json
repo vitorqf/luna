@@ -5,7 +5,7 @@
       "id": "Vitors-Mac-mini.local",
       "name": "Vitors-Mac-mini.local",
       "hostname": "Vitors-Mac-mini.local",
-      "status": "online",
+      "status": "offline",
       "capabilities": [
         "notify",
         "open_app",
@@ -27,5 +27,18 @@
     }
   ],
   "customDeviceAliases": {},
-  "commandHistory": []
+  "commandHistory": [
+    {
+      "id": "e2b196e4-c9ce-48ff-b0c6-fc91a564ae62",
+      "rawText": "Notificar \"Mensagem do Luna\" no Vitors-Mac-mini.local",
+      "intent": "notify",
+      "targetDeviceId": "Vitors-Mac-mini.local",
+      "params": {
+        "title": "Luna",
+        "message": "Mensagem do Luna"
+      },
+      "status": "failed",
+      "reason": "execution_error"
+    }
+  ]
 }

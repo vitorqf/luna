@@ -484,6 +484,15 @@ Evitar:
 - escrita do snapshot e atomica via arquivo temporario + rename, criando o diretorio pai quando necessario
 - testes unitarios do store, integracao de restart e runtime com arquivo corrompido adicionados e verdes
 
+### Slice 38 - pacote executavel do agent (Concluido)
+
+- artifact do agent agora inclui runtime Node embutido, dependencias externas `dotenv` e `ws`, `.env.example` proprio e launcher nativo da plataforma do build
+- launcher do pacote executa a partir da raiz do artifact e, no primeiro run sem `.env`, gera o arquivo a partir do template, orienta ajuste de `LUNA_AGENT_SERVER_URL` e encerra com codigo 1
+- segundo run do launcher usa o runtime embutido para iniciar `dist/apps/agent/src/main.js` sem depender de Node pre-instalado na maquina alvo
+- builder ganhou overrides opcionais de `runtimeExecutablePath` e `targetPlatform` para cobertura unitaria do empacotamento
+- smoke test do pacote isolado fora do monorepo valida bootstrap de `.env` e conexao real do agent ao server
+- documentacao operacional atualizada com fluxo de build e primeiro uso do pacote do agent
+
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -592,11 +601,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 37 concluido em 2026-03-30.
+Slice 38 concluido em 2026-03-30.
 
 Proximo passo recomendado:
 
--> Slice 38: distribuicao do agent em pacote executavel, com smoke test de conexao ao server e bootstrap simplificado para instalacao local
+-> a definir
 
 ## 19. Observa√ß√£o Final
 

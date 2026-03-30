@@ -81,7 +81,28 @@ This generates `dist-artifacts/server` with:
 - exported web under `web/`
 - compiled internal workspace packages under `node_modules/@luna`
 
-## 6. Manual validation
+## 6. Build the agent package locally
+
+```bash
+npm run build:artifact:agent
+```
+
+This generates `dist-artifacts/agent` with:
+
+- compiled agent runtime under `dist/`
+- internal workspace packages under `node_modules/@luna`
+- external runtime dependencies under `node_modules/`
+- embedded Node runtime under `runtime/`
+- local bootstrap files `.env.example` and `run-agent.cmd` or `run-agent.sh`
+
+First package run:
+
+1. Copy `dist-artifacts/agent` to the target machine.
+2. Run `run-agent.cmd` on Windows or `./run-agent.sh` on Unix-like systems.
+3. The package creates `.env` from `.env.example`, asks you to update `LUNA_AGENT_SERVER_URL`, and exits once.
+4. Edit `.env` and run the launcher again.
+
+## 7. Manual validation
 
 1. Open the web UI.
 2. Send `Abrir Spotify no Notebook 2`.
