@@ -9,6 +9,7 @@ import {
   settlePendingCommandAck,
   type PendingCommandAck,
 } from "./command-dispatcher";
+import type { PresenceService } from "./presence-service";
 import { normalizeWhitespace } from "./utils/value";
 
 export interface RegisterWebSocketConnectionHandlersInput {
@@ -19,9 +20,7 @@ export interface RegisterWebSocketConnectionHandlersInput {
   deviceSockets: Map<string, WebSocket>;
   socketDeviceIds: WeakMap<WebSocket, string>;
   pendingCommandAcks: Map<string, PendingCommandAck>;
-  clearHeartbeatTimeout: (deviceId: string) => void;
-  markDeviceOffline: (deviceId: string) => void;
-  armHeartbeatTimeout: (deviceId: string, socket: WebSocket) => void;
+  presenceService: PresenceService;
 }
 
 export const registerWebSocketConnectionHandlers = (
@@ -35,9 +34,7 @@ export const registerWebSocketConnectionHandlers = (
     deviceSockets,
     socketDeviceIds,
     pendingCommandAcks,
-    clearHeartbeatTimeout,
-    markDeviceOffline,
-    armHeartbeatTimeout,
+    presenceService,
   } = input;
 
   webSocketServer.on("connection", (socket) => {
@@ -52,8 +49,8 @@ export const registerWebSocketConnectionHandlers = (
       }
 
       deviceSockets.delete(deviceId);
-      clearHeartbeatTimeout(deviceId);
-      markDeviceOffline(deviceId);
+      presenceService.clearHeartbeatTimeout(deviceId);
+      presenceService.markDeviceOffline(deviceId);
     });
 
     socket.on("message", (rawMessage) => {
@@ -76,7 +73,7 @@ export const registerWebSocketConnectionHandlers = (
         });
         deviceSockets.set(deviceId, socket);
         socketDeviceIds.set(socket, deviceId);
-        armHeartbeatTimeout(deviceId, socket);
+        presenceService.armHeartbeatTimeout(deviceId, socket);
         return;
       }
 
@@ -91,7 +88,7 @@ export const registerWebSocketConnectionHandlers = (
           return;
         }
 
-        armHeartbeatTimeout(heartbeatDeviceId, socket);
+        presenceService.armHeartbeatTimeout(heartbeatDeviceId, socket);
         return;
       }
 

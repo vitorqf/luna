@@ -25,6 +25,7 @@ import {
   startServerRuntime,
   stopServerRuntime,
 } from "./server-runtime";
+import { PresenceService } from "./presence-service";
 
 export const serverBootstrapReady = true;
 
@@ -77,51 +78,16 @@ export const createLunaServer = (
   let httpServer: HttpServer | undefined;
   let webSocketServer: WebSocketServer | undefined;
   let discoverySocket: Socket | undefined;
-  const heartbeatTimeouts = new Map<string, NodeJS.Timeout>();
+  const presenceService = new PresenceService({
+    devices,
+    deviceSockets,
+    heartbeatTimeoutMs,
+  });
 
   const getRegisteredDevices = (): Device[] => Array.from(devices.values());
   const getDiscoveredAgents = (): DiscoveredAgent[] =>
     Array.from(discoveredAgents.values());
   const getCommandHistory = (): Command[] => [...commandHistory];
-
-  const clearHeartbeatTimeout = (deviceId: string): void => {
-    const timeoutHandle = heartbeatTimeouts.get(deviceId);
-    if (!timeoutHandle) {
-      return;
-    }
-
-    clearTimeout(timeoutHandle);
-    heartbeatTimeouts.delete(deviceId);
-  };
-
-  const markDeviceOffline = (deviceId: string): void => {
-    const device = devices.get(deviceId);
-    if (!device) {
-      return;
-    }
-
-    devices.set(deviceId, {
-      ...device,
-      status: "offline",
-    });
-  };
-
-  const armHeartbeatTimeout = (deviceId: string, socket: WebSocket): void => {
-    clearHeartbeatTimeout(deviceId);
-
-    const timeoutHandle = setTimeout(() => {
-      heartbeatTimeouts.delete(deviceId);
-      if (deviceSockets.get(deviceId) !== socket) {
-        return;
-      }
-
-      deviceSockets.delete(deviceId);
-      markDeviceOffline(deviceId);
-      socket.terminate();
-    }, heartbeatTimeoutMs);
-
-    heartbeatTimeouts.set(deviceId, timeoutHandle);
-  };
 
   const dispatchCommand = createCommandDispatcher({
     devices,
@@ -208,9 +174,7 @@ export const createLunaServer = (
         deviceSockets,
         socketDeviceIds,
         pendingCommandAcks,
-        clearHeartbeatTimeout,
-        markDeviceOffline,
-        armHeartbeatTimeout,
+        presenceService,
       },
       devices,
       discoveredAgents,
@@ -234,10 +198,7 @@ export const createLunaServer = (
       pendingCommandAcks.delete(commandId);
     }
 
-    for (const timeoutHandle of heartbeatTimeouts.values()) {
-      clearTimeout(timeoutHandle);
-    }
-    heartbeatTimeouts.clear();
+    presenceService.clearAllHeartbeatTimeouts();
 
     const currentHttpServer = httpServer;
     const currentWebSocketServer = webSocketServer;

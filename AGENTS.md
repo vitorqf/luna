@@ -432,6 +432,15 @@ Evitar:
 - index.ts passou a delegar bootstrap/teardown de infraestrutura para funcoes dedicadas de runtime
 - ordem de inicializacao e encerramento foi preservada, mantendo contratos atuais
 - regressao validada com testes de integracao do server verdes
+
+### Slice 32 - modularizacao da presenca e heartbeat timeout (Concluido)
+
+- logica de presenca foi extraida para a classe PresenceService em apps/server/src/presence-service.ts
+- classe recebe dependencias por construtor (devices, deviceSockets e heartbeatTimeoutMs)
+- handler WebSocket passou a depender do servico de presenca em vez de funcoes soltas
+- limpeza dos timers de heartbeat no stop passou a usar metodo dedicado do servico
+- regressao validada com testes de integracao do server verdes
+
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -540,11 +549,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 31 concluido em 2026-03-30.
+Slice 32 concluido em 2026-03-30.
 
 Proximo passo recomendado:
 
--> Slice 32: extrair gestao de presenca/heartbeat timeout para modulo dedicado e reduzir responsabilidades remanescentes do index.ts
+-> Slice 33: iniciar camada de aplicacao com use cases em classes (submit/rename/approve) com DI manual e adapters atuais
 
 ## 19. Observa√ß√£o Final
 
