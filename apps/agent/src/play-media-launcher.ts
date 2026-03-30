@@ -8,7 +8,7 @@ export interface PlayMediaInput {
 }
 
 interface SpawnedProcess {
-  pid?: number;
+  pid?: number | undefined;
   stdout?: NodeJS.ReadableStream | null;
   stderr?: NodeJS.ReadableStream | null;
   once: {

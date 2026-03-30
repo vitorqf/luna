@@ -456,6 +456,13 @@ Evitar:
 - contratos HTTP, mensagens e codigos de status foram preservados sem alteracao de comportamento
 - regressao validada com testes unitarios dos use cases e suite completa do server verde
 
+### Slice 35 - artefatos separados de build (server vs agent) (Concluido)
+
+- criado builder de artefatos com targets explicitos server e agent
+- artifact de server inclui apenas dist/apps/server + dist/packages/{shared-types,protocol,command-parser}
+- artifact de agent inclui apenas dist/apps/agent + dist/packages/{shared-types,protocol}
+- scripts adicionados: build:artifact:server, build:artifact:agent e build:artifacts
+- testes unitarios adicionados para garantir separacao entre os artefatos e evitar mistura de arquivos de app
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -564,11 +571,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 34 concluido em 2026-03-30.
+Slice 35 concluido em 2026-03-30.
 
 Proximo passo recomendado:
 
--> Slice 35: extrair parser/resolvedor de target para portas explicitas da aplicacao e mover o wiring de composicao para modulo dedicado, mantendo comportamento atual
+-> Slice 36: distribuicao do server via Docker com web junto (obrigatorio), incluindo smoke test de subida e endpoints basicos
 
 ## 19. Observa√ß√£o Final
 
