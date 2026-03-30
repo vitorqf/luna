@@ -14,13 +14,34 @@ Required variables for runtime:
 
 - `LUNA_SERVER_HOST`
 - `LUNA_SERVER_PORT`
+- `LUNA_SERVER_STATIC_DIR` (optional)
 - `LUNA_AGENT_SERVER_URL`
 - `LUNA_AGENT_DEVICE_ID`
 - `LUNA_AGENT_DEVICE_NAME`
 - `LUNA_AGENT_DEVICE_HOSTNAME`
-- `NEXT_PUBLIC_LUNA_SERVER_URL`
+- `NEXT_PUBLIC_LUNA_SERVER_URL` (optional for standalone web dev)
 
-## 3. Start services (separate terminals)
+## 3. Run the embedded Docker image
+
+Build the image:
+
+```bash
+npm run docker:build:server
+```
+
+Run the image:
+
+```bash
+npm run docker:run:server
+```
+
+Validation:
+
+1. Open `http://127.0.0.1:4000/`.
+2. Check `http://127.0.0.1:4000/devices`.
+3. Confirm the embedded web loads from the same origin.
+
+## 4. Start services locally (separate terminals)
 
 Terminal 1:
 
@@ -42,7 +63,19 @@ npm run start:web
 
 If port `3000` is busy, Next.js will automatically use the next available port.
 
-## 4. Manual validation
+## 5. Build the embedded server artifact locally
+
+```bash
+npm run build:artifact:server
+```
+
+This generates `dist-artifacts/server` with:
+
+- compiled server runtime under `dist/`
+- exported web under `web/`
+- compiled internal workspace packages under `node_modules/@luna`
+
+## 6. Manual validation
 
 1. Open the web UI.
 2. Send `Abrir Spotify no Notebook 2`.

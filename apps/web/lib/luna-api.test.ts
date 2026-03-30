@@ -44,6 +44,17 @@ describe("luna api client", () => {
     ]);
   });
 
+  it("uses same-origin relative endpoints when base url is not configured", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(makeJsonResponse([]));
+
+    const client = createLunaApiClient();
+    await client.fetchDevices();
+
+    expect(fetchMock).toHaveBeenCalledWith("/devices", undefined);
+  });
+
   it("submits command text to POST /commands", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")

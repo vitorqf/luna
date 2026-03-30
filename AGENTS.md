@@ -463,6 +463,17 @@ Evitar:
 - artifact de agent inclui apenas dist/apps/agent + dist/packages/{shared-types,protocol}
 - scripts adicionados: build:artifact:server, build:artifact:agent e build:artifacts
 - testes unitarios adicionados para garantir separacao entre os artefatos e evitar mistura de arquivos de app
+
+### Slice 36 - distribuicao do server via Docker com web embutido (Concluido)
+
+- server passou a servir web exportado de forma opcional via LUNA_SERVER_STATIC_DIR, mantendo prioridade total das rotas REST e WebSocket
+- web passou a usar mesma origem por padrao quando NEXT_PUBLIC_LUNA_SERVER_URL nao estiver configurado
+- artifact de server agora inclui web exportado e node_modules/@luna/* compilado para runtime empacotado
+- novo build embutido do web limpa NEXT_PUBLIC_LUNA_SERVER_URL para evitar hardcode de host local na distribuicao
+- adicionado apps/server/Dockerfile multi-stage para imagem unica com server + web
+- scripts adicionados: build:web:embedded, docker:build:server e docker:run:server
+- smoke test Docker cobre subida do container, GET /devices, GET / e leitura de variavel de porta; quando Docker nao estiver disponivel, o teste faz skip explicito
+
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -571,11 +582,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 35 concluido em 2026-03-30.
+Slice 36 concluido em 2026-03-30.
 
 Proximo passo recomendado:
 
--> Slice 36: distribuicao do server via Docker com web junto (obrigatorio), incluindo smoke test de subida e endpoints basicos
+-> Slice 37: distribuicao do agent em pacote executavel, com smoke test de conexao ao server e bootstrap simplificado para instalacao local
 
 ## 19. Observa√ß√£o Final
 

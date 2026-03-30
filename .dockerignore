@@ -1,0 +1,8 @@
+.env
+.git
+.next
+dist
+dist-artifacts
+node_modules
+apps/web/.next
+apps/web/node_modules

@@ -10,7 +10,7 @@ export interface SubmitCommandAck {
 const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, "");
 
 const resolveBaseUrl = (): string =>
-  trimTrailingSlash(process.env.NEXT_PUBLIC_LUNA_SERVER_URL ?? "http://127.0.0.1:4000");
+  trimTrailingSlash(process.env.NEXT_PUBLIC_LUNA_SERVER_URL ?? "");
 
 const readErrorMessage = async (response: Response): Promise<string> => {
   try {

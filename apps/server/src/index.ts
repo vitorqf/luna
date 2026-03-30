@@ -26,6 +26,7 @@ import {
   stopServerRuntime,
 } from "./server-runtime";
 import { PresenceService } from "./presence-service";
+import { serveStaticAsset } from "./static-web";
 
 export const serverBootstrapReady = true;
 
@@ -33,6 +34,7 @@ export interface LunaServerOptions {
   host?: string;
   port?: number;
   heartbeatTimeoutMs?: number;
+  staticDir?: string | undefined;
 }
 
 export interface LunaServer {
@@ -74,6 +76,7 @@ export const createLunaServer = (
   const pendingCommandAcks = new Map<string, PendingCommandAck>();
   const host = options.host ?? "127.0.0.1";
   const heartbeatTimeoutMs = options.heartbeatTimeoutMs ?? 15_000;
+  const staticDir = options.staticDir;
   let port = options.port ?? 0;
   let httpServer: HttpServer | undefined;
   let webSocketServer: WebSocketServer | undefined;
@@ -112,50 +115,69 @@ export const createLunaServer = (
     request: IncomingMessage,
     response: ServerResponse,
   ): void => {
-    if (request.method === "OPTIONS") {
-      sendNoContent(response);
-      return;
-    }
-
-    if (request.method === "GET" && request.url === "/devices") {
-      sendJson(response, 200, getRegisteredDevices());
-      return;
-    }
-
-    if (request.method === "GET" && request.url === "/commands") {
-      sendJson(response, 200, getCommandHistory());
-      return;
-    }
-
-    if (request.method === "GET" && request.url === "/discovery/agents") {
-      sendJson(response, 200, getDiscoveredAgents());
-      return;
-    }
-
-    if (request.method === "POST" && request.url === "/commands") {
-      void handleSubmitCommand(request, response);
-      return;
-    }
-
-    if (request.method === "PATCH" && isNonEmptyString(request.url)) {
-      const deviceId = extractDeviceIdFromPatchRoute(request.url);
-      if (deviceId) {
-        void handleRenameDevice(request, response, deviceId);
+    void (async () => {
+      if (request.method === "OPTIONS") {
+        sendNoContent(response);
         return;
       }
-    }
 
-    if (request.method === "POST" && isNonEmptyString(request.url)) {
-      const discoveredAgentId = extractDiscoveredAgentIdFromApproveRoute(
-        request.url,
-      );
-      if (discoveredAgentId) {
-        handleApproveDiscoveredAgent(response, discoveredAgentId);
+      if (request.method === "GET" && request.url === "/devices") {
+        sendJson(response, 200, getRegisteredDevices());
         return;
       }
-    }
 
-    sendJson(response, 404, { message: "Not Found" });
+      if (request.method === "GET" && request.url === "/commands") {
+        sendJson(response, 200, getCommandHistory());
+        return;
+      }
+
+      if (request.method === "GET" && request.url === "/discovery/agents") {
+        sendJson(response, 200, getDiscoveredAgents());
+        return;
+      }
+
+      if (request.method === "POST" && request.url === "/commands") {
+        await handleSubmitCommand(request, response);
+        return;
+      }
+
+      if (request.method === "PATCH" && isNonEmptyString(request.url)) {
+        const deviceId = extractDeviceIdFromPatchRoute(request.url);
+        if (deviceId) {
+          await handleRenameDevice(request, response, deviceId);
+          return;
+        }
+      }
+
+      if (request.method === "POST" && isNonEmptyString(request.url)) {
+        const discoveredAgentId = extractDiscoveredAgentIdFromApproveRoute(
+          request.url,
+        );
+        if (discoveredAgentId) {
+          handleApproveDiscoveredAgent(response, discoveredAgentId);
+          return;
+        }
+      }
+
+      if (
+        await serveStaticAsset({
+          request,
+          response,
+          staticDir,
+        })
+      ) {
+        return;
+      }
+
+      sendJson(response, 404, { message: "Not Found" });
+    })().catch(() => {
+      if (response.headersSent) {
+        response.destroy();
+        return;
+      }
+
+      sendJson(response, 500, { message: "Internal Server Error" });
+    });
   };
 
   const start = async (): Promise<void> => {
