@@ -411,6 +411,14 @@ Evitar:
 - novo modulo apps/server/src/websocket-connection-handlers.ts centraliza regras de presenca e processamento de ack
 - start() no index.ts ficou mais enxuto, apenas fazendo o wiring do servidor e delegando handlers
 - regressao validada com testes de integracao do server verdes
+
+### Slice 29 - modularizacao do dispatch e pending acks (Concluido)
+
+- dispatchCommand foi extraido de apps/server/src/index.ts para apps/server/src/command-dispatcher.ts
+- ciclo de pending acks (create, timeout, cleanup e settle por ack) foi centralizado no novo modulo
+- handler WebSocket passou a delegar o settle de ack para o dispatcher, reduzindo duplicacao de responsabilidade
+- regressao validada com testes de integracao do server verdes
+
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -519,11 +527,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 28 concluido em 2026-03-30.
+Slice 29 concluido em 2026-03-30.
 
 Proximo passo recomendado:
 
--> Slice 29: extrair dispatch e ciclo de pending acks para um modulo dedicado, reduzindo responsabilidades de index.ts
+-> Slice 30: extrair fluxo de discovery UDP para modulo dedicado, simplificando start() e separando responsabilidades de rede
 
 ## 19. Observa√ß√£o Final
 

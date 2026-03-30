@@ -1,6 +1,5 @@
 import type { Command, Device, DiscoveredAgent } from "@luna/shared-types";
 import {
-  createCommandDispatchMessage,
   parseAgentDiscoveryAnnounceMessage,
   type CommandAckPayload,
 } from "@luna/protocol";
@@ -15,8 +14,9 @@ import {
 import type { AddressInfo } from "node:net";
 import { WebSocket, WebSocketServer } from "ws";
 import {
-  supportsIntent,
-} from "./utils/device";
+  createCommandDispatcher,
+  type PendingCommandAck,
+} from "./command-dispatcher";
 import { sendJson, sendNoContent } from "./utils/http";
 import { createHttpRequestHandlers } from "./http-request-handlers";
 import {
@@ -26,7 +26,6 @@ import {
 import { isNonEmptyString, normalizeWhitespace } from "./utils/value";
 import {
   registerWebSocketConnectionHandlers,
-  type PendingCommandAck,
 } from "./websocket-connection-handlers";
 
 export const serverBootstrapReady = true;
@@ -126,8 +125,13 @@ export const createLunaServer = (
     heartbeatTimeouts.set(deviceId, timeoutHandle);
   };
 
-  const findDeviceById = (deviceId: string): Device | null =>
-    devices.get(deviceId) ?? null;
+  const dispatchCommand = createCommandDispatcher({
+    devices,
+    commandHistory,
+    deviceSockets,
+    pendingCommandAcks,
+    createCommandId: randomUUID,
+  });
 
   const {
     handleSubmitCommand,
@@ -137,7 +141,7 @@ export const createLunaServer = (
     devices,
     discoveredAgents,
     customDeviceAliases,
-    dispatchCommand: (input) => dispatchCommand(input),
+    dispatchCommand,
   });
 
   const handleRequest = (
@@ -335,76 +339,6 @@ export const createLunaServer = (
         currentDiscoverySocket.close(() => resolve());
       });
     }
-  };
-
-  const dispatchCommand = async (
-    input: DispatchCommandInput,
-  ): Promise<DispatchCommandAcknowledgement> => {
-    const socket = deviceSockets.get(input.targetDeviceId);
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
-      throw new Error(`Device ${input.targetDeviceId} is not connected.`);
-    }
-
-    const commandId = randomUUID();
-    const targetDevice = findDeviceById(input.targetDeviceId);
-    if (targetDevice && !supportsIntent(targetDevice, input.intent)) {
-      commandHistory.push({
-        id: commandId,
-        rawText: input.rawText ?? "",
-        intent: input.intent,
-        targetDeviceId: input.targetDeviceId,
-        params: input.params,
-        status: "failed",
-        reason: "unsupported_intent",
-      });
-
-      return {
-        commandId,
-        targetDeviceId: input.targetDeviceId,
-        status: "failed",
-        reason: "unsupported_intent",
-      };
-    }
-
-    const serializedDispatchMessage = JSON.stringify(
-      createCommandDispatchMessage({
-        commandId,
-        intent: input.intent,
-        params: input.params,
-      }),
-    );
-
-    return new Promise<DispatchCommandAcknowledgement>((resolve, reject) => {
-      const ackTimeoutMs = input.ackTimeoutMs ?? 1_000;
-      const timeoutHandle = setTimeout(() => {
-        pendingCommandAcks.delete(commandId);
-        reject(
-          new Error(
-            `Timed out waiting for ack from device ${input.targetDeviceId}.`,
-          ),
-        );
-      }, ackTimeoutMs);
-
-      pendingCommandAcks.set(commandId, {
-        rawText: input.rawText ?? "",
-        intent: input.intent,
-        params: input.params,
-        targetDeviceId: input.targetDeviceId,
-        timeoutHandle,
-        resolve,
-        reject,
-      });
-
-      socket.send(serializedDispatchMessage, (error) => {
-        if (!error) {
-          return;
-        }
-
-        clearTimeout(timeoutHandle);
-        pendingCommandAcks.delete(commandId);
-        reject(error);
-      });
-    });
   };
 
   return {

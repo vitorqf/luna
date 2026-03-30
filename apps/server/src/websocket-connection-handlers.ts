@@ -2,26 +2,14 @@ import {
   parseAgentHeartbeatMessage,
   parseAgentRegisterMessage,
   parseCommandAckMessage,
-  type CommandAckPayload,
 } from "@luna/protocol";
 import type { Command, Device } from "@luna/shared-types";
 import type { WebSocket, WebSocketServer } from "ws";
+import {
+  settlePendingCommandAck,
+  type PendingCommandAck,
+} from "./command-dispatcher";
 import { normalizeWhitespace } from "./utils/value";
-
-export interface PendingCommandAck {
-  rawText: string;
-  intent: string;
-  params: Record<string, unknown>;
-  targetDeviceId: string;
-  timeoutHandle: NodeJS.Timeout;
-  resolve: (ack: {
-    commandId: string;
-    targetDeviceId: string;
-    status: CommandAckPayload["status"];
-    reason?: string;
-  }) => void;
-  reject: (error: Error) => void;
-}
 
 export interface RegisterWebSocketConnectionHandlersInput {
   webSocketServer: WebSocketServer;
@@ -112,49 +100,11 @@ export const registerWebSocketConnectionHandlers = (
         return;
       }
 
-      const pendingAck = pendingCommandAcks.get(commandAckMessage.payload.commandId);
-      if (!pendingAck) {
-        return;
-      }
-
-      const ackDeviceId = socketDeviceIds.get(socket);
-      if (!ackDeviceId || ackDeviceId !== pendingAck.targetDeviceId) {
-        return;
-      }
-
-      pendingCommandAcks.delete(commandAckMessage.payload.commandId);
-      clearTimeout(pendingAck.timeoutHandle);
-      if (commandAckMessage.payload.status === "failed") {
-        commandHistory.push({
-          id: commandAckMessage.payload.commandId,
-          rawText: pendingAck.rawText,
-          intent: pendingAck.intent,
-          targetDeviceId: pendingAck.targetDeviceId,
-          params: pendingAck.params,
-          status: "failed",
-          reason: commandAckMessage.payload.reason,
-        });
-        pendingAck.resolve({
-          commandId: commandAckMessage.payload.commandId,
-          targetDeviceId: pendingAck.targetDeviceId,
-          status: "failed",
-          reason: commandAckMessage.payload.reason,
-        });
-        return;
-      }
-
-      commandHistory.push({
-        id: commandAckMessage.payload.commandId,
-        rawText: pendingAck.rawText,
-        intent: pendingAck.intent,
-        targetDeviceId: pendingAck.targetDeviceId,
-        params: pendingAck.params,
-        status: "success",
-      });
-      pendingAck.resolve({
-        commandId: commandAckMessage.payload.commandId,
-        targetDeviceId: pendingAck.targetDeviceId,
-        status: "success",
+      settlePendingCommandAck({
+        commandAckPayload: commandAckMessage.payload,
+        ackDeviceId: socketDeviceIds.get(socket),
+        pendingCommandAcks,
+        commandHistory,
       });
     });
   });
