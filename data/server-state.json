@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "devices": [
+    {
+      "id": "Vitors-Mac-mini.local",
+      "name": "Vitors-Mac-mini.local",
+      "hostname": "Vitors-Mac-mini.local",
+      "status": "online",
+      "capabilities": [
+        "notify",
+        "open_app",
+        "set_volume",
+        "play_media"
+      ]
+    },
+    {
+      "id": "DESKTOP-O87I1O7",
+      "name": "DESKTOP-O87I1O7",
+      "hostname": "DESKTOP-O87I1O7",
+      "status": "offline",
+      "capabilities": [
+        "notify",
+        "open_app",
+        "set_volume",
+        "play_media"
+      ]
+    }
+  ],
+  "customDeviceAliases": {},
+  "commandHistory": []
+}

@@ -6,6 +6,7 @@ import { createLunaServer, type LunaServer } from "./index";
 
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_PORT = 4000;
+const DEFAULT_STATE_FILE = resolve("data/server-state.json");
 
 interface RuntimeLogger {
   info: (message: string) => void;
@@ -18,6 +19,7 @@ export interface ServerRuntimeConfig {
   host: string;
   port: number;
   staticDir: string | undefined;
+  stateFile: string;
 }
 
 const parseHost = (value: string | undefined): string => {
@@ -47,6 +49,15 @@ const parseStaticDir = (value: string | undefined): string | undefined => {
   const normalized = value?.trim();
   if (!normalized) {
     return undefined;
+  }
+
+  return resolve(normalized);
+};
+
+const parseStateFile = (value: string | undefined): string => {
+  const normalized = value?.trim();
+  if (!normalized) {
+    return DEFAULT_STATE_FILE;
   }
 
   return resolve(normalized);
@@ -89,7 +100,8 @@ export const parseServerRuntimeConfig = (
 ): ServerRuntimeConfig => ({
   host: parseHost(env.LUNA_SERVER_HOST),
   port: parsePort(env.LUNA_SERVER_PORT),
-  staticDir: parseStaticDir(env.LUNA_SERVER_STATIC_DIR)
+  staticDir: parseStaticDir(env.LUNA_SERVER_STATIC_DIR),
+  stateFile: parseStateFile(env.LUNA_SERVER_STATE_FILE)
 });
 
 export const loadServerRuntimeEnvFromFile = (

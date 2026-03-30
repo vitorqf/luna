@@ -14,6 +14,10 @@ import {
   createCommandDispatcher,
   type PendingCommandAck,
 } from "./command-dispatcher";
+import {
+  loadPersistedServerState,
+  savePersistedServerState,
+} from "./server-state-store";
 import { sendJson, sendNoContent } from "./utils/http";
 import { createHttpRequestHandlers } from "./http-request-handlers";
 import {
@@ -35,6 +39,7 @@ export interface LunaServerOptions {
   port?: number;
   heartbeatTimeoutMs?: number;
   staticDir?: string | undefined;
+  stateFile?: string;
 }
 
 export interface LunaServer {
@@ -77,14 +82,27 @@ export const createLunaServer = (
   const host = options.host ?? "127.0.0.1";
   const heartbeatTimeoutMs = options.heartbeatTimeoutMs ?? 15_000;
   const staticDir = options.staticDir;
+  const stateFile = options.stateFile;
   let port = options.port ?? 0;
   let httpServer: HttpServer | undefined;
   let webSocketServer: WebSocketServer | undefined;
   let discoverySocket: Socket | undefined;
+  const persistState = (): void => {
+    if (!stateFile) {
+      return;
+    }
+
+    savePersistedServerState(stateFile, {
+      devices: Array.from(devices.values()),
+      customDeviceAliases: Object.fromEntries(customDeviceAliases),
+      commandHistory: [...commandHistory],
+    });
+  };
   const presenceService = new PresenceService({
     devices,
     deviceSockets,
     heartbeatTimeoutMs,
+    onDeviceOffline: persistState,
   });
 
   const getRegisteredDevices = (): Device[] => Array.from(devices.values());
@@ -98,6 +116,7 @@ export const createLunaServer = (
     deviceSockets,
     pendingCommandAcks,
     createCommandId: randomUUID,
+    persistState,
   });
 
   const {
@@ -109,6 +128,7 @@ export const createLunaServer = (
     discoveredAgents,
     customDeviceAliases,
     dispatchCommand,
+    persistState,
   });
 
   const handleRequest = (
@@ -185,6 +205,30 @@ export const createLunaServer = (
       return;
     }
 
+    if (stateFile) {
+      const persistedState = loadPersistedServerState(stateFile);
+      devices.clear();
+      discoveredAgents.clear();
+      customDeviceAliases.clear();
+      commandHistory.length = 0;
+
+      for (const persistedDevice of persistedState.devices) {
+        devices.set(persistedDevice.id, {
+          ...persistedDevice,
+          status: "offline",
+          capabilities: [...persistedDevice.capabilities],
+        });
+      }
+
+      for (const [deviceId, alias] of Object.entries(
+        persistedState.customDeviceAliases,
+      )) {
+        customDeviceAliases.set(deviceId, alias);
+      }
+
+      commandHistory.push(...persistedState.commandHistory);
+    }
+
     const startedRuntime = await startServerRuntime({
       host,
       port,
@@ -197,6 +241,7 @@ export const createLunaServer = (
         socketDeviceIds,
         pendingCommandAcks,
         presenceService,
+        persistState,
       },
       devices,
       discoveredAgents,

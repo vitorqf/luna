@@ -474,6 +474,16 @@ Evitar:
 - scripts adicionados: build:web:embedded, docker:build:server e docker:run:server
 - smoke test Docker cobre subida do container, GET /devices, GET / e leitura de variavel de porta; quando Docker nao estiver disponivel, o teste faz skip explicito
 
+### Slice 37 - persistencia local do estado do server (Concluido)
+
+- runtime do server ganhou `LUNA_SERVER_STATE_FILE` opcional, com default em `./data/server-state.json`
+- novo store local versionado em JSON persiste `devices`, aliases explicitos e historico de comandos
+- startup do server hidrata o snapshot persistido e normaliza devices carregados para `offline`
+- mutacoes relevantes agora salvam estado apos register/reconnect, offline por close ou heartbeat timeout, rename, approve e append no historico
+- arquivo ausente inicia estado vazio; JSON invalido ou schema invalido falham o startup com erro explicito
+- escrita do snapshot e atomica via arquivo temporario + rename, criando o diretorio pai quando necessario
+- testes unitarios do store, integracao de restart e runtime com arquivo corrompido adicionados e verdes
+
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -582,11 +592,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 36 concluido em 2026-03-30.
+Slice 37 concluido em 2026-03-30.
 
 Proximo passo recomendado:
 
--> Slice 37: distribuicao do agent em pacote executavel, com smoke test de conexao ao server e bootstrap simplificado para instalacao local
+-> Slice 38: distribuicao do agent em pacote executavel, com smoke test de conexao ao server e bootstrap simplificado para instalacao local
 
 ## 19. Observa√ß√£o Final
 

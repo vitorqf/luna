@@ -21,6 +21,7 @@ export interface RegisterWebSocketConnectionHandlersInput {
   socketDeviceIds: WeakMap<WebSocket, string>;
   pendingCommandAcks: Map<string, PendingCommandAck>;
   presenceService: PresenceService;
+  persistState?: (() => void) | undefined;
 }
 
 export const registerWebSocketConnectionHandlers = (
@@ -35,6 +36,7 @@ export const registerWebSocketConnectionHandlers = (
     socketDeviceIds,
     pendingCommandAcks,
     presenceService,
+    persistState,
   } = input;
 
   webSocketServer.on("connection", (socket) => {
@@ -71,6 +73,7 @@ export const registerWebSocketConnectionHandlers = (
           status: "online",
           capabilities: [...registerMessage.payload.capabilities],
         });
+        persistState?.();
         deviceSockets.set(deviceId, socket);
         socketDeviceIds.set(socket, deviceId);
         presenceService.armHeartbeatTimeout(deviceId, socket);
@@ -102,6 +105,7 @@ export const registerWebSocketConnectionHandlers = (
         ackDeviceId: socketDeviceIds.get(socket),
         pendingCommandAcks,
         commandHistory,
+        persistState,
       });
     });
   });

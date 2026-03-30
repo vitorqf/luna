@@ -37,6 +37,7 @@ export interface CreateCommandDispatcherInput {
   deviceSockets: Map<string, WebSocket>;
   pendingCommandAcks: Map<string, PendingCommandAck>;
   createCommandId: () => string;
+  persistState?: (() => void) | undefined;
 }
 
 export const settlePendingCommandAck = (input: {
@@ -44,6 +45,7 @@ export const settlePendingCommandAck = (input: {
   ackDeviceId: string | undefined;
   pendingCommandAcks: Map<string, PendingCommandAck>;
   commandHistory: Command[];
+  persistState?: (() => void) | undefined;
 }): boolean => {
   const pendingAck = input.pendingCommandAcks.get(input.commandAckPayload.commandId);
   if (!pendingAck) {
@@ -66,6 +68,7 @@ export const settlePendingCommandAck = (input: {
       status: "failed",
       reason: input.commandAckPayload.reason,
     });
+    input.persistState?.();
     pendingAck.resolve({
       commandId: input.commandAckPayload.commandId,
       targetDeviceId: pendingAck.targetDeviceId,
@@ -83,6 +86,7 @@ export const settlePendingCommandAck = (input: {
     params: pendingAck.params,
     status: "success",
   });
+  input.persistState?.();
   pendingAck.resolve({
     commandId: input.commandAckPayload.commandId,
     targetDeviceId: pendingAck.targetDeviceId,
@@ -94,8 +98,14 @@ export const settlePendingCommandAck = (input: {
 export const createCommandDispatcher = (
   input: CreateCommandDispatcherInput,
 ): ((input: DispatchCommandInput) => Promise<DispatchCommandAcknowledgement>) => {
-  const { devices, commandHistory, deviceSockets, pendingCommandAcks, createCommandId } =
-    input;
+  const {
+    devices,
+    commandHistory,
+    deviceSockets,
+    pendingCommandAcks,
+    createCommandId,
+    persistState,
+  } = input;
 
   return async (
     dispatchInput: DispatchCommandInput,
@@ -117,6 +127,7 @@ export const createCommandDispatcher = (
         status: "failed",
         reason: "unsupported_intent",
       });
+      persistState?.();
 
       return {
         commandId,

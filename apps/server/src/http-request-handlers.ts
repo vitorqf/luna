@@ -24,6 +24,7 @@ export interface CreateHttpRequestHandlersInput {
   dispatchCommand: (
     input: DispatchCommandInput,
   ) => Promise<DispatchCommandAcknowledgement>;
+  persistState?: (() => void) | undefined;
 }
 
 export interface HttpRequestHandlers {
@@ -45,7 +46,13 @@ export interface HttpRequestHandlers {
 export const createHttpRequestHandlers = (
   input: CreateHttpRequestHandlersInput,
 ): HttpRequestHandlers => {
-  const { devices, discoveredAgents, customDeviceAliases, dispatchCommand } = input;
+  const {
+    devices,
+    discoveredAgents,
+    customDeviceAliases,
+    dispatchCommand,
+    persistState,
+  } = input;
   const targetDeviceLookupPort: TargetDeviceLookupPort = {
     resolveByTargetName: (targetName) =>
       resolveDeviceByTarget(devices.values(), targetName),
@@ -57,6 +64,7 @@ export const createHttpRequestHandlers = (
     getById: (deviceId) => devices.get(deviceId),
     save: (device) => {
       devices.set(device.id, device);
+      persistState?.();
     },
     isNameTaken: (candidateName, excludedDeviceId) =>
       isDeviceNameTaken(devices.values(), candidateName, excludedDeviceId),

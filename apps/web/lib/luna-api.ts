@@ -9,8 +9,27 @@ export interface SubmitCommandAck {
 
 const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, "");
 
-const resolveBaseUrl = (): string =>
-  trimTrailingSlash(process.env.NEXT_PUBLIC_LUNA_SERVER_URL ?? "");
+const DEFAULT_LOCAL_SERVER_PORT = "4000";
+
+const resolveBaseUrl = (): string => {
+  const configuredBaseUrl = trimTrailingSlash(
+    process.env.NEXT_PUBLIC_LUNA_SERVER_URL ?? ""
+  );
+  if (configuredBaseUrl) {
+    return configuredBaseUrl;
+  }
+
+  if (typeof window === "undefined" || process.env.NODE_ENV === "production") {
+    return "";
+  }
+
+  const { protocol, hostname, port } = window.location;
+  if (!port.startsWith("30")) {
+    return "";
+  }
+
+  return `${protocol}//${hostname}:${DEFAULT_LOCAL_SERVER_PORT}`;
+};
 
 const readErrorMessage = async (response: Response): Promise<string> => {
   try {

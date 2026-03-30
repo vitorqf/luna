@@ -5,6 +5,7 @@ export interface CreatePresenceServiceInput {
   devices: Map<string, Device>;
   deviceSockets: Map<string, WebSocket>;
   heartbeatTimeoutMs: number;
+  onDeviceOffline?: (() => void) | undefined;
 }
 
 export class PresenceService {
@@ -28,10 +29,15 @@ export class PresenceService {
       return;
     }
 
+    if (device.status === "offline") {
+      return;
+    }
+
     this.input.devices.set(deviceId, {
       ...device,
       status: "offline",
     });
+    this.input.onDeviceOffline?.();
   };
 
   public readonly armHeartbeatTimeout = (

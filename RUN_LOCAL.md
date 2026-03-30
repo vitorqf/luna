@@ -15,6 +15,7 @@ Required variables for runtime:
 - `LUNA_SERVER_HOST`
 - `LUNA_SERVER_PORT`
 - `LUNA_SERVER_STATIC_DIR` (optional)
+- `LUNA_SERVER_STATE_FILE` (optional, defaults to `./data/server-state.json`)
 - `LUNA_AGENT_SERVER_URL`
 - `LUNA_AGENT_DEVICE_ID`
 - `LUNA_AGENT_DEVICE_NAME`
@@ -34,6 +35,11 @@ Run the image:
 ```bash
 npm run docker:run:server
 ```
+
+Persistence note:
+
+- The default server state file inside the container is `/app/data/server-state.json`.
+- To keep state across container recreation, mount a volume or bind mount that path.
 
 Validation:
 
@@ -80,3 +86,4 @@ This generates `dist-artifacts/server` with:
 1. Open the web UI.
 2. Send `Abrir Spotify no Notebook 2`.
 3. Check UI success feedback and agent log output.
+4. Restart the server and confirm approved devices plus command history are preserved.

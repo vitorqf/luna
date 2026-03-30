@@ -38,6 +38,7 @@ describe("slice 9 - server runtime", () => {
       expect(targetEnv.LUNA_SERVER_HOST).toBe("0.0.0.0");
       expect(targetEnv.LUNA_SERVER_PORT).toBe("4011");
       expect(targetEnv.LUNA_SERVER_STATIC_DIR).toBe("./static-web");
+      expect(targetEnv.LUNA_SERVER_STATE_FILE).toBeUndefined();
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }
@@ -49,7 +50,8 @@ describe("slice 9 - server runtime", () => {
     expect(config).toEqual({
       host: "127.0.0.1",
       port: 4000,
-      staticDir: undefined
+      staticDir: undefined,
+      stateFile: join(process.cwd(), "data", "server-state.json")
     });
   });
 
@@ -69,6 +71,14 @@ describe("slice 9 - server runtime", () => {
     expect(config.staticDir).toBe(join(process.cwd(), "apps/web/out"));
   });
 
+  it("resolves the configured state file from env", () => {
+    const config = parseServerRuntimeConfig({
+      LUNA_SERVER_STATE_FILE: "tmp/server-state.json"
+    });
+
+    expect(config.stateFile).toBe(join(process.cwd(), "tmp", "server-state.json"));
+  });
+
   it("throws when the configured static dir does not exist", async () => {
     await expect(
       startServerRuntimeFromEnv({
@@ -79,6 +89,25 @@ describe("slice 9 - server runtime", () => {
     ).rejects.toThrowError(
       "LUNA_SERVER_STATIC_DIR must point to an existing directory."
     );
+  });
+
+  it("fails to start when the configured state file is corrupted", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "luna-server-state-"));
+    const stateFile = join(tempDir, "server-state.json");
+
+    try {
+      await writeFile(stateFile, "{not-json", "utf-8");
+
+      await expect(
+        startServerRuntimeFromEnv({
+          LUNA_SERVER_HOST: "127.0.0.1",
+          LUNA_SERVER_PORT: "0",
+          LUNA_SERVER_STATE_FILE: stateFile
+        })
+      ).rejects.toThrowError("Server state file is not valid JSON.");
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
   });
 
   it("starts runtime from env and responds to GET /devices", async () => {
