@@ -384,6 +384,13 @@ Evitar:
 - web ganhou painel de discovery com lista pendente e botao de aprovacao
 - testes de protocol, agent announcer, integracao server e API web adicionados; regressao completa verde
 
+### Slice 25 - validacao de capability antes do dispatch (Concluido)
+
+- server valida o intent contra as capabilities do device antes de enviar command.dispatch
+- quando o device nao suporta o intent, server retorna falha rapida com status failed e reason unsupported_intent
+- falha rapida nao envia mensagem para o agent e fica registrada no historico em memoria
+- testes de integracao em POST /commands cobrem falha rapida, ausencia de dispatch no agent e regressao do fluxo suportado
+
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -492,11 +499,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 24 concluido em 2026-03-29.
+Slice 25 concluido em 2026-03-30.
 
 Proximo passo recomendado:
 
--> Slice 25: validar capability antes do dispatch e retornar falha rapida `unsupported_intent` para comando nao suportado no device
+-> Slice 26: melhorar UX no web para prevenir comando incompativel com capability (ex.: sugerir apenas devices compativeis por intent no composer)
 
 ## 19. Observa√ß√£o Final
 

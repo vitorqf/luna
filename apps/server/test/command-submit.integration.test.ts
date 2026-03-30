@@ -173,6 +173,84 @@ describe("slice 8 - command submit endpoint", () => {
     }
   });
 
+  it("fails fast with unsupported_intent when target device does not support parsed intent", async () => {
+    const server = createLunaServer({ host: "127.0.0.1", port: 0 });
+    await server.start();
+
+    let agentConnection: { disconnect: () => Promise<void> } | undefined;
+    const executeOpenApp = vi.fn(async () => undefined);
+    const onCommand = vi.fn();
+    const rawText = "Abrir Spotify no Notebook 2";
+
+    try {
+      agentConnection = await connectAgent({
+        serverUrl: `ws://127.0.0.1:${server.getPort()}`,
+        device: {
+          id: "notebook-2",
+          name: "Notebook 2",
+          hostname: "notebook-2.local",
+          capabilities: ["notify"]
+        },
+        executeOpenApp,
+        onCommand
+      });
+
+      await waitForAssertion(() => {
+        expect(server.getRegisteredDevices()).toHaveLength(1);
+      });
+
+      const response = await fetch(`http://127.0.0.1:${server.getPort()}/commands`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          rawText
+        })
+      });
+
+      expect(response.status).toBe(200);
+      const payload = (await response.json()) as {
+        commandId: string;
+        targetDeviceId: string;
+        status: string;
+        reason?: string;
+      };
+      expect(payload).toEqual({
+        commandId: expect.any(String),
+        targetDeviceId: "notebook-2",
+        status: "failed",
+        reason: "unsupported_intent"
+      });
+
+      expect(onCommand).not.toHaveBeenCalled();
+      expect(executeOpenApp).not.toHaveBeenCalled();
+
+      const historyResponse = await fetch(
+        `http://127.0.0.1:${server.getPort()}/commands`
+      );
+      await expect(historyResponse.json()).resolves.toEqual([
+        {
+          id: payload.commandId,
+          rawText,
+          intent: "open_app",
+          targetDeviceId: "notebook-2",
+          params: {
+            appName: "Spotify"
+          },
+          status: "failed",
+          reason: "unsupported_intent"
+        }
+      ]);
+    } finally {
+      if (agentConnection) {
+        await agentConnection.disconnect();
+      }
+
+      await server.stop();
+    }
+  });
+
   it("returns 422 when raw command text is not supported by parser", async () => {
     const server = createLunaServer({ host: "127.0.0.1", port: 0 });
     await server.start();

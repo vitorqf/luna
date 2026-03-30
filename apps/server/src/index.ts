@@ -198,6 +198,9 @@ export const createLunaServer = (
   const findDeviceById = (deviceId: string): Device | null =>
     devices.get(deviceId) ?? null;
 
+  const supportsIntent = (device: Device, intent: string): boolean =>
+    device.capabilities.some((capability) => capability === intent);
+
   const isDeviceNameTaken = (
     candidateName: string,
     excludedDeviceId: string,
@@ -679,6 +682,26 @@ export const createLunaServer = (
     }
 
     const commandId = randomUUID();
+    const targetDevice = findDeviceById(input.targetDeviceId);
+    if (targetDevice && !supportsIntent(targetDevice, input.intent)) {
+      commandHistory.push({
+        id: commandId,
+        rawText: input.rawText ?? "",
+        intent: input.intent,
+        targetDeviceId: input.targetDeviceId,
+        params: input.params,
+        status: "failed",
+        reason: "unsupported_intent",
+      });
+
+      return {
+        commandId,
+        targetDeviceId: input.targetDeviceId,
+        status: "failed",
+        reason: "unsupported_intent",
+      };
+    }
+
     const serializedDispatchMessage = JSON.stringify(
       createCommandDispatchMessage({
         commandId,
