@@ -1,6 +1,7 @@
 import {
   COMMAND_ACK_STATUS_FAILED,
   COMMAND_ACK_STATUS_SUCCESS,
+  createAgentHeartbeatMessage,
   createAgentRegisterMessage,
   createCommandAckMessage,
   parseCommandDispatchMessage,
@@ -32,6 +33,7 @@ export interface AgentIdentity {
 export interface ConnectAgentInput {
   serverUrl: string;
   device: AgentIdentity;
+  heartbeatIntervalMs?: number;
   onCommand?: (command: ReceivedCommand) => void | Promise<void>;
   executeNotify?: (
     notification: LocalNotification
@@ -186,10 +188,12 @@ export const connectAgent = async (
   const socket = new WebSocket(input.serverUrl);
   const registerCapabilities =
     input.device.capabilities ?? SUPPORTED_CAPABILITIES;
+  const heartbeatIntervalMs = input.heartbeatIntervalMs ?? 5_000;
   const executeNotify = input.executeNotify ?? executeLocalNotify;
   const executeOpenApp = input.executeOpenApp ?? executeLocalOpenApp;
   const executeSetVolume = input.executeSetVolume ?? executeLocalSetVolume;
   const executePlayMedia = input.executePlayMedia ?? executeLocalPlayMedia;
+  let heartbeatInterval: NodeJS.Timeout | undefined;
 
   const sendSerializedMessage = async (
     serializedMessage: string
@@ -363,10 +367,36 @@ export const connectAgent = async (
     )
   );
 
+  if (heartbeatIntervalMs > 0) {
+    heartbeatInterval = setInterval(() => {
+      if (socket.readyState !== WebSocket.OPEN) {
+        return;
+      }
+
+      void sendSerializedMessage(
+        JSON.stringify(createAgentHeartbeatMessage({}))
+      ).catch(() => undefined);
+    }, heartbeatIntervalMs);
+  }
+
+  socket.on("close", () => {
+    if (!heartbeatInterval) {
+      return;
+    }
+
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = undefined;
+  });
+
   return {
     disconnect: async () => {
       if (socket.readyState === WebSocket.CLOSED) {
         return;
+      }
+
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = undefined;
       }
 
       await new Promise<void>((resolve) => {

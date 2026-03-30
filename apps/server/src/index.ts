@@ -2,6 +2,7 @@ import type { Command, Device } from "@luna/shared-types";
 import { parseCommand } from "@luna/command-parser";
 import {
   createCommandDispatchMessage,
+  parseAgentHeartbeatMessage,
   parseAgentRegisterMessage,
   parseCommandAckMessage,
   type CommandAckPayload,
@@ -21,6 +22,7 @@ export const serverBootstrapReady = true;
 export interface LunaServerOptions {
   host?: string;
   port?: number;
+  heartbeatTimeoutMs?: number;
 }
 
 export interface LunaServer {
@@ -114,12 +116,53 @@ export const createLunaServer = (
   const socketDeviceIds = new WeakMap<WebSocket, string>();
   const pendingCommandAcks = new Map<string, PendingCommandAck>();
   const host = options.host ?? "127.0.0.1";
+  const heartbeatTimeoutMs = options.heartbeatTimeoutMs ?? 15_000;
   let port = options.port ?? 0;
   let httpServer: HttpServer | undefined;
   let webSocketServer: WebSocketServer | undefined;
+  const heartbeatTimeouts = new Map<string, NodeJS.Timeout>();
 
   const getRegisteredDevices = (): Device[] => Array.from(devices.values());
   const getCommandHistory = (): Command[] => [...commandHistory];
+
+  const clearHeartbeatTimeout = (deviceId: string): void => {
+    const timeoutHandle = heartbeatTimeouts.get(deviceId);
+    if (!timeoutHandle) {
+      return;
+    }
+
+    clearTimeout(timeoutHandle);
+    heartbeatTimeouts.delete(deviceId);
+  };
+
+  const markDeviceOffline = (deviceId: string): void => {
+    const device = devices.get(deviceId);
+    if (!device) {
+      return;
+    }
+
+    devices.set(deviceId, {
+      ...device,
+      status: "offline",
+    });
+  };
+
+  const armHeartbeatTimeout = (deviceId: string, socket: WebSocket): void => {
+    clearHeartbeatTimeout(deviceId);
+
+    const timeoutHandle = setTimeout(() => {
+      heartbeatTimeouts.delete(deviceId);
+      if (deviceSockets.get(deviceId) !== socket) {
+        return;
+      }
+
+      deviceSockets.delete(deviceId);
+      markDeviceOffline(deviceId);
+      socket.terminate();
+    }, heartbeatTimeoutMs);
+
+    heartbeatTimeouts.set(deviceId, timeoutHandle);
+  };
 
   const resolveDeviceByName = (deviceName: string): Device | null => {
     const normalizedDeviceName = deviceName.trim().toLocaleLowerCase();
@@ -225,81 +268,90 @@ export const createLunaServer = (
         }
 
         deviceSockets.delete(deviceId);
-        const device = devices.get(deviceId);
-        if (!device) {
-          return;
-        }
-
-        devices.set(deviceId, {
-          ...device,
-          status: "offline",
-        });
+        clearHeartbeatTimeout(deviceId);
+        markDeviceOffline(deviceId);
       });
 
       socket.on("message", (rawMessage) => {
         const serializedMessage = rawMessage.toString();
         const registerMessage = parseAgentRegisterMessage(serializedMessage);
-        if (!registerMessage) {
-          const commandAckMessage = parseCommandAckMessage(serializedMessage);
-          if (!commandAckMessage) {
+        if (registerMessage) {
+          devices.set(registerMessage.payload.id, {
+            ...registerMessage.payload,
+            status: "online",
+          });
+          deviceSockets.set(registerMessage.payload.id, socket);
+          socketDeviceIds.set(socket, registerMessage.payload.id);
+          armHeartbeatTimeout(registerMessage.payload.id, socket);
+          return;
+        }
+
+        const heartbeatMessage = parseAgentHeartbeatMessage(serializedMessage);
+        if (heartbeatMessage) {
+          const heartbeatDeviceId = socketDeviceIds.get(socket);
+          if (!heartbeatDeviceId) {
             return;
           }
 
-          const pendingAck = pendingCommandAcks.get(
-            commandAckMessage.payload.commandId,
-          );
-          if (!pendingAck) {
+          if (deviceSockets.get(heartbeatDeviceId) !== socket) {
             return;
           }
 
-          const ackDeviceId = socketDeviceIds.get(socket);
-          if (!ackDeviceId || ackDeviceId !== pendingAck.targetDeviceId) {
-            return;
-          }
+          armHeartbeatTimeout(heartbeatDeviceId, socket);
+          return;
+        }
 
-          pendingCommandAcks.delete(commandAckMessage.payload.commandId);
-          clearTimeout(pendingAck.timeoutHandle);
-          if (commandAckMessage.payload.status === "failed") {
-            commandHistory.push({
-              id: commandAckMessage.payload.commandId,
-              rawText: pendingAck.rawText,
-              intent: pendingAck.intent,
-              targetDeviceId: pendingAck.targetDeviceId,
-              params: pendingAck.params,
-              status: "failed",
-              reason: commandAckMessage.payload.reason,
-            });
-            pendingAck.resolve({
-              commandId: commandAckMessage.payload.commandId,
-              targetDeviceId: pendingAck.targetDeviceId,
-              status: "failed",
-              reason: commandAckMessage.payload.reason,
-            });
-            return;
-          }
+        const commandAckMessage = parseCommandAckMessage(serializedMessage);
+        if (!commandAckMessage) {
+          return;
+        }
 
+        const pendingAck = pendingCommandAcks.get(
+          commandAckMessage.payload.commandId,
+        );
+        if (!pendingAck) {
+          return;
+        }
+
+        const ackDeviceId = socketDeviceIds.get(socket);
+        if (!ackDeviceId || ackDeviceId !== pendingAck.targetDeviceId) {
+          return;
+        }
+
+        pendingCommandAcks.delete(commandAckMessage.payload.commandId);
+        clearTimeout(pendingAck.timeoutHandle);
+        if (commandAckMessage.payload.status === "failed") {
           commandHistory.push({
             id: commandAckMessage.payload.commandId,
             rawText: pendingAck.rawText,
             intent: pendingAck.intent,
             targetDeviceId: pendingAck.targetDeviceId,
             params: pendingAck.params,
-            status: "success",
+            status: "failed",
+            reason: commandAckMessage.payload.reason,
           });
           pendingAck.resolve({
             commandId: commandAckMessage.payload.commandId,
             targetDeviceId: pendingAck.targetDeviceId,
-            status: "success",
+            status: "failed",
+            reason: commandAckMessage.payload.reason,
           });
           return;
         }
 
-        devices.set(registerMessage.payload.id, {
-          ...registerMessage.payload,
-          status: "online",
+        commandHistory.push({
+          id: commandAckMessage.payload.commandId,
+          rawText: pendingAck.rawText,
+          intent: pendingAck.intent,
+          targetDeviceId: pendingAck.targetDeviceId,
+          params: pendingAck.params,
+          status: "success",
         });
-        deviceSockets.set(registerMessage.payload.id, socket);
-        socketDeviceIds.set(socket, registerMessage.payload.id);
+        pendingAck.resolve({
+          commandId: commandAckMessage.payload.commandId,
+          targetDeviceId: pendingAck.targetDeviceId,
+          status: "success",
+        });
       });
     });
 
@@ -344,6 +396,11 @@ export const createLunaServer = (
       );
       pendingCommandAcks.delete(commandId);
     }
+
+    for (const timeoutHandle of heartbeatTimeouts.values()) {
+      clearTimeout(timeoutHandle);
+    }
+    heartbeatTimeouts.clear();
 
     const currentHttpServer = httpServer;
     const currentWebSocketServer = webSocketServer;

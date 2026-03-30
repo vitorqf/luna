@@ -3,6 +3,7 @@ import type { DeviceCapability } from "@luna/shared-types";
 export const protocolBootstrapReady = true;
 
 export const AGENT_REGISTER_MESSAGE_TYPE = "agent.register" as const;
+export const AGENT_HEARTBEAT_MESSAGE_TYPE = "agent.heartbeat" as const;
 export const COMMAND_DISPATCH_MESSAGE_TYPE = "command.dispatch" as const;
 export const COMMAND_ACK_MESSAGE_TYPE = "command.ack" as const;
 export const COMMAND_ACK_STATUS_SUCCESS = "success" as const;
@@ -34,6 +35,15 @@ export interface AgentRegisterPayload {
 export interface AgentRegisterMessage {
   type: typeof AGENT_REGISTER_MESSAGE_TYPE;
   payload: AgentRegisterPayload;
+}
+
+export interface AgentHeartbeatPayload {
+  [key: string]: never;
+}
+
+export interface AgentHeartbeatMessage {
+  type: typeof AGENT_HEARTBEAT_MESSAGE_TYPE;
+  payload: AgentHeartbeatPayload;
 }
 
 export interface CommandDispatchPayload {
@@ -80,6 +90,13 @@ export const createAgentRegisterMessage = (
   payload
 });
 
+export const createAgentHeartbeatMessage = (
+  payload: AgentHeartbeatPayload
+): AgentHeartbeatMessage => ({
+  type: AGENT_HEARTBEAT_MESSAGE_TYPE,
+  payload
+});
+
 export const createCommandDispatchMessage = (
   payload: CommandDispatchPayload
 ): CommandDispatchMessage => ({
@@ -116,6 +133,24 @@ export const isAgentRegisterMessage = (
     Array.isArray(value.payload.capabilities) &&
     value.payload.capabilities.every(isDeviceCapability)
   );
+};
+
+export const isAgentHeartbeatMessage = (
+  value: unknown
+): value is AgentHeartbeatMessage => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  if (value.type !== AGENT_HEARTBEAT_MESSAGE_TYPE) {
+    return false;
+  }
+
+  if (!isRecord(value.payload)) {
+    return false;
+  }
+
+  return Object.keys(value.payload).length === 0;
 };
 
 export const isCommandDispatchMessage = (
@@ -178,6 +213,17 @@ export const parseAgentRegisterMessage = (
   try {
     const parsed = JSON.parse(serializedMessage) as unknown;
     return isAgentRegisterMessage(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+export const parseAgentHeartbeatMessage = (
+  serializedMessage: string
+): AgentHeartbeatMessage | null => {
+  try {
+    const parsed = JSON.parse(serializedMessage) as unknown;
+    return isAgentHeartbeatMessage(parsed) ? parsed : null;
   } catch {
     return null;
   }

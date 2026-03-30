@@ -342,6 +342,15 @@ Evitar:
 - validacao de protocolo rejeita capability fora da uniao can�nica
 - testes de protocolo, integracao server/agent/presenca e web atualizados e verdes
 
+
+### Slice 20 - heartbeat leve de presenca (Concluido)
+
+- protocolo WS ganhou `agent.heartbeat` com parse/create/validacao dedicados
+- agent envia heartbeat periodico apos `agent.register` (default 5s) e limpa timer no disconnect
+- server controla timeout por socket ativo (default 15s), renova por register/heartbeat e, ao expirar, marca `offline` e encerra socket
+- heartbeat de socket stale apos reconexao e ignorado
+- testes unitarios de protocol + integracao de presenca por heartbeat adicionados e verdes
+
 ---
 
 ## 11. Critérios de Conclusão por Slice
@@ -452,11 +461,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 19 concluido em 2026-03-29.
+Slice 20 concluido em 2026-03-29.
 
 Proximo passo recomendado:
 
--> Introduzir heartbeat leve entre agent e server para reduzir falso online em quedas abruptas de rede
+-> Adicionar `lastSeen` por device (atualizado por heartbeat/close) e exibir no web para diagnostico de presenca
 
 ## 19. Observação Final
 
