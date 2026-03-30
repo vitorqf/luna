@@ -391,6 +391,13 @@ Evitar:
 - falha rapida nao envia mensagem para o agent e fica registrada no historico em memoria
 - testes de integracao em POST /commands cobrem falha rapida, ausencia de dispatch no agent e regressao do fluxo suportado
 
+### Slice 26 - refactor inicial de modularizacao do server (Concluido)
+
+- apps/server/src/index.ts foi simplificado com extracao de utilitarios puros para arquivos dedicados
+- novos modulos: value-utils, http-utils, device-utils e route-utils
+- fluxo e contratos foram mantidos sem alteracao de comportamento
+- regressao validada com todos os testes de integracao do server verdes
+
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -499,11 +506,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 25 concluido em 2026-03-30.
+Slice 26 concluido em 2026-03-30.
 
 Proximo passo recomendado:
 
--> Slice 26: melhorar UX no web para prevenir comando incompativel com capability (ex.: sugerir apenas devices compativeis por intent no composer)
+-> Slice 27: continuar modularizacao do server extraindo handlers HTTP (submit/rename/approve) para reduzir responsabilidade do index.ts
 
 ## 19. Observa√ß√£o Final
 

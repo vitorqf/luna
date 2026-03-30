@@ -18,6 +18,17 @@ import {
 } from "node:http";
 import type { AddressInfo } from "node:net";
 import { WebSocket, WebSocketServer } from "ws";
+import {
+  isDeviceNameTaken,
+  resolveDeviceByTarget,
+  supportsIntent,
+} from "./utils/device";
+import { readRawRequestBody, sendJson, sendNoContent } from "./utils/http";
+import {
+  extractDeviceIdFromPatchRoute,
+  extractDiscoveredAgentIdFromApproveRoute,
+} from "./utils/route";
+import { isNonEmptyString, isRecord, normalizeWhitespace } from "./utils/value";
 
 export const serverBootstrapReady = true;
 
@@ -63,55 +74,6 @@ interface PendingCommandAck {
   resolve: (ack: DispatchCommandAcknowledgement) => void;
   reject: (error: Error) => void;
 }
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
-
-const isNonEmptyString = (value: unknown): value is string =>
-  typeof value === "string" && value.trim().length > 0;
-
-const normalizeWhitespace = (value: string): string =>
-  value.trim().replace(/\s+/g, " ");
-
-const CORS_ALLOW_ORIGIN = "*";
-const CORS_ALLOW_METHODS = "GET,POST,PATCH,OPTIONS";
-const CORS_ALLOW_HEADERS = "content-type";
-
-const setCorsHeaders = (response: ServerResponse): void => {
-  response.setHeader("access-control-allow-origin", CORS_ALLOW_ORIGIN);
-  response.setHeader("access-control-allow-methods", CORS_ALLOW_METHODS);
-  response.setHeader("access-control-allow-headers", CORS_ALLOW_HEADERS);
-};
-
-const sendJson = (
-  response: ServerResponse,
-  statusCode: number,
-  payload: unknown,
-): void => {
-  setCorsHeaders(response);
-  response.writeHead(statusCode, {
-    "content-type": "application/json; charset=utf-8",
-  });
-  response.end(JSON.stringify(payload));
-};
-
-const sendNoContent = (response: ServerResponse): void => {
-  setCorsHeaders(response);
-  response.writeHead(204);
-  response.end();
-};
-
-const readRawRequestBody = async (
-  request: IncomingMessage,
-): Promise<string> => {
-  const chunks: Buffer[] = [];
-
-  for await (const chunk of request) {
-    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
-  }
-
-  return Buffer.concat(chunks).toString("utf-8");
-};
 
 export const createLunaServer = (
   options: LunaServerOptions = {},
@@ -175,77 +137,8 @@ export const createLunaServer = (
     heartbeatTimeouts.set(deviceId, timeoutHandle);
   };
 
-  const normalizeDeviceKey = (value: string): string =>
-    normalizeWhitespace(value).toLocaleLowerCase();
-
-  const resolveDeviceByTarget = (targetDeviceName: string): Device | null => {
-    const normalizedTarget = normalizeDeviceKey(targetDeviceName);
-    for (const device of devices.values()) {
-      if (normalizeDeviceKey(device.name) === normalizedTarget) {
-        return device;
-      }
-    }
-
-    for (const device of devices.values()) {
-      if (normalizeDeviceKey(device.hostname) === normalizedTarget) {
-        return device;
-      }
-    }
-
-    return null;
-  };
-
   const findDeviceById = (deviceId: string): Device | null =>
     devices.get(deviceId) ?? null;
-
-  const supportsIntent = (device: Device, intent: string): boolean =>
-    device.capabilities.some((capability) => capability === intent);
-
-  const isDeviceNameTaken = (
-    candidateName: string,
-    excludedDeviceId: string,
-  ): boolean => {
-    const normalizedCandidateName = normalizeDeviceKey(candidateName);
-    for (const device of devices.values()) {
-      if (device.id === excludedDeviceId) {
-        continue;
-      }
-
-      if (normalizeDeviceKey(device.name) === normalizedCandidateName) {
-        return true;
-      }
-    }
-
-    return false;
-  };
-
-  const extractDeviceIdFromPatchRoute = (requestUrl: string): string | null => {
-    const match = requestUrl.match(/^\/devices\/([^/]+)$/);
-    if (!match) {
-      return null;
-    }
-
-    try {
-      return decodeURIComponent(match[1] ?? "");
-    } catch {
-      return null;
-    }
-  };
-
-  const extractDiscoveredAgentIdFromApproveRoute = (
-    requestUrl: string,
-  ): string | null => {
-    const match = requestUrl.match(/^\/discovery\/agents\/([^/]+)\/approve$/);
-    if (!match) {
-      return null;
-    }
-
-    try {
-      return decodeURIComponent(match[1] ?? "");
-    } catch {
-      return null;
-    }
-  };
 
   const handleSubmitCommand = async (
     request: IncomingMessage,
@@ -273,7 +166,10 @@ export const createLunaServer = (
       return;
     }
 
-    const targetDevice = resolveDeviceByTarget(parsedCommand.targetDeviceName);
+    const targetDevice = resolveDeviceByTarget(
+      devices.values(),
+      parsedCommand.targetDeviceName,
+    );
     if (!targetDevice) {
       sendJson(response, 404, { message: "Target device is not registered." });
       return;
@@ -325,7 +221,7 @@ export const createLunaServer = (
       return;
     }
 
-    if (isDeviceNameTaken(normalizedName, deviceId)) {
+    if (isDeviceNameTaken(devices.values(), normalizedName, deviceId)) {
       sendJson(response, 409, { message: "Device name is already in use." });
       return;
     }
@@ -360,7 +256,13 @@ export const createLunaServer = (
     }
 
     const approvedName = normalizeWhitespace(discoveredAgent.hostname);
-    if (isDeviceNameTaken(approvedName, normalizedDiscoveredAgentId)) {
+    if (
+      isDeviceNameTaken(
+        devices.values(),
+        approvedName,
+        normalizedDiscoveredAgentId,
+      )
+    ) {
       sendJson(response, 409, { message: "Device name is already in use." });
       return;
     }
@@ -457,7 +359,9 @@ export const createLunaServer = (
         const registerMessage = parseAgentRegisterMessage(serializedMessage);
         if (registerMessage) {
           const deviceId = normalizeWhitespace(registerMessage.payload.id);
-          const registerName = normalizeWhitespace(registerMessage.payload.name);
+          const registerName = normalizeWhitespace(
+            registerMessage.payload.name,
+          );
           const registerHostname = normalizeWhitespace(
             registerMessage.payload.hostname,
           );
@@ -582,9 +486,7 @@ export const createLunaServer = (
         return;
       }
 
-      const discoveredAgentId = normalizeWhitespace(
-        announceMessage.payload.id,
-      );
+      const discoveredAgentId = normalizeWhitespace(announceMessage.payload.id);
       if (devices.has(discoveredAgentId)) {
         discoveredAgents.delete(discoveredAgentId);
         return;
