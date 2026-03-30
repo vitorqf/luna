@@ -419,6 +419,13 @@ Evitar:
 - handler WebSocket passou a delegar o settle de ack para o dispatcher, reduzindo duplicacao de responsabilidade
 - regressao validada com testes de integracao do server verdes
 
+### Slice 30 - modularizacao do fluxo de discovery UDP (Concluido)
+
+- fluxo de discovery UDP foi extraido de apps/server/src/index.ts para apps/server/src/agent-discovery-udp.ts
+- start/stop do socket UDP passaram para funcoes dedicadas, mantendo bind, parse e atualizacao da lista descoberta
+- index.ts passou a apenas orquestrar o lifecycle, reduzindo responsabilidade de rede no start/stop
+- regressao validada com testes de integracao do server verdes
+
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -527,11 +534,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 29 concluido em 2026-03-30.
+Slice 30 concluido em 2026-03-30.
 
 Proximo passo recomendado:
 
--> Slice 30: extrair fluxo de discovery UDP para modulo dedicado, simplificando start() e separando responsabilidades de rede
+-> Slice 31: extrair lifecycle de start/stop (http/ws/udp) para modulo de runtime do server, mantendo contratos atuais
 
 ## 19. Observa√ß√£o Final
 

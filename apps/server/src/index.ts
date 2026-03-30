@@ -1,10 +1,9 @@
 import type { Command, Device, DiscoveredAgent } from "@luna/shared-types";
 import {
-  parseAgentDiscoveryAnnounceMessage,
   type CommandAckPayload,
 } from "@luna/protocol";
 import { randomUUID } from "node:crypto";
-import { createSocket, type Socket } from "node:dgram";
+import type { Socket } from "node:dgram";
 import {
   createServer,
   type IncomingMessage,
@@ -27,6 +26,10 @@ import { isNonEmptyString, normalizeWhitespace } from "./utils/value";
 import {
   registerWebSocketConnectionHandlers,
 } from "./websocket-connection-handlers";
+import {
+  startAgentDiscoveryUdp,
+  stopAgentDiscoveryUdp,
+} from "./agent-discovery-udp";
 
 export const serverBootstrapReady = true;
 
@@ -242,48 +245,11 @@ export const createLunaServer = (
     }
 
     port = (address as AddressInfo).port;
-
-    discoverySocket = createSocket("udp4");
-    discoverySocket.on("message", (messageBuffer) => {
-      const announceMessage = parseAgentDiscoveryAnnounceMessage(
-        messageBuffer.toString("utf-8"),
-      );
-      if (!announceMessage) {
-        return;
-      }
-
-      const discoveredAgentId = normalizeWhitespace(announceMessage.payload.id);
-      if (devices.has(discoveredAgentId)) {
-        discoveredAgents.delete(discoveredAgentId);
-        return;
-      }
-
-      discoveredAgents.set(discoveredAgentId, {
-        id: discoveredAgentId,
-        hostname: normalizeWhitespace(announceMessage.payload.hostname),
-        capabilities: [...announceMessage.payload.capabilities],
-      });
-    });
-
-    await new Promise<void>((resolve, reject) => {
-      if (!discoverySocket) {
-        reject(new Error("Discovery socket is not initialized."));
-        return;
-      }
-
-      const handleListening = () => {
-        discoverySocket?.off("error", handleError);
-        resolve();
-      };
-
-      const handleError = (error: Error) => {
-        discoverySocket?.off("listening", handleListening);
-        reject(error);
-      };
-
-      discoverySocket.once("listening", handleListening);
-      discoverySocket.once("error", handleError);
-      discoverySocket.bind(port, host);
+    discoverySocket = await startAgentDiscoveryUdp({
+      host,
+      port,
+      devices,
+      discoveredAgents,
     });
   };
 
@@ -334,11 +300,7 @@ export const createLunaServer = (
       });
     });
 
-    if (currentDiscoverySocket) {
-      await new Promise<void>((resolve) => {
-        currentDiscoverySocket.close(() => resolve());
-      });
-    }
+    await stopAgentDiscoveryUdp(currentDiscoverySocket);
   };
 
   return {
