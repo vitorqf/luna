@@ -5,13 +5,11 @@ import {
 import { randomUUID } from "node:crypto";
 import type { Socket } from "node:dgram";
 import {
-  createServer,
   type IncomingMessage,
   type Server as HttpServer,
   type ServerResponse,
 } from "node:http";
-import type { AddressInfo } from "node:net";
-import { WebSocket, WebSocketServer } from "ws";
+import { WebSocket, type WebSocketServer } from "ws";
 import {
   createCommandDispatcher,
   type PendingCommandAck,
@@ -22,14 +20,11 @@ import {
   extractDeviceIdFromPatchRoute,
   extractDiscoveredAgentIdFromApproveRoute,
 } from "./utils/route";
-import { isNonEmptyString, normalizeWhitespace } from "./utils/value";
+import { isNonEmptyString } from "./utils/value";
 import {
-  registerWebSocketConnectionHandlers,
-} from "./websocket-connection-handlers";
-import {
-  startAgentDiscoveryUdp,
-  stopAgentDiscoveryUdp,
-} from "./agent-discovery-udp";
+  startServerRuntime,
+  stopServerRuntime,
+} from "./server-runtime";
 
 export const serverBootstrapReady = true;
 
@@ -202,55 +197,28 @@ export const createLunaServer = (
       return;
     }
 
-    httpServer = createServer(handleRequest);
-    webSocketServer = new WebSocketServer({ server: httpServer });
-
-    registerWebSocketConnectionHandlers({
-      webSocketServer,
-      devices,
-      customDeviceAliases,
-      commandHistory,
-      deviceSockets,
-      socketDeviceIds,
-      pendingCommandAcks,
-      clearHeartbeatTimeout,
-      markDeviceOffline,
-      armHeartbeatTimeout,
-    });
-
-    await new Promise<void>((resolve, reject) => {
-      if (!httpServer) {
-        reject(new Error("HTTP server is not initialized."));
-        return;
-      }
-
-      const handleListening = () => {
-        httpServer?.off("error", handleError);
-        resolve();
-      };
-
-      const handleError = (error: Error) => {
-        httpServer?.off("listening", handleListening);
-        reject(error);
-      };
-
-      httpServer.once("listening", handleListening);
-      httpServer.once("error", handleError);
-      httpServer.listen(port, host);
-    });
-
-    const address = httpServer.address();
-    if (!address || typeof address === "string") {
-      throw new Error("HTTP server did not expose a TCP address.");
-    }
-
-    port = (address as AddressInfo).port;
-    discoverySocket = await startAgentDiscoveryUdp({
+    const startedRuntime = await startServerRuntime({
       host,
       port,
+      handleRequest,
+      websocketHandlers: {
+        devices,
+        customDeviceAliases,
+        commandHistory,
+        deviceSockets,
+        socketDeviceIds,
+        pendingCommandAcks,
+        clearHeartbeatTimeout,
+        markDeviceOffline,
+        armHeartbeatTimeout,
+      },
       devices,
       discoveredAgents,
     });
+    httpServer = startedRuntime.httpServer;
+    webSocketServer = startedRuntime.webSocketServer;
+    discoverySocket = startedRuntime.discoverySocket;
+    port = startedRuntime.port;
   };
 
   const stop = async (): Promise<void> => {
@@ -278,29 +246,11 @@ export const createLunaServer = (
     webSocketServer = undefined;
     discoverySocket = undefined;
 
-    await new Promise<void>((resolve, reject) => {
-      currentWebSocketServer.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-
-        resolve();
-      });
+    await stopServerRuntime({
+      httpServer: currentHttpServer,
+      webSocketServer: currentWebSocketServer,
+      discoverySocket: currentDiscoverySocket,
     });
-
-    await new Promise<void>((resolve, reject) => {
-      currentHttpServer.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-
-        resolve();
-      });
-    });
-
-    await stopAgentDiscoveryUdp(currentDiscoverySocket);
   };
 
   return {

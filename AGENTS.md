@@ -426,6 +426,12 @@ Evitar:
 - index.ts passou a apenas orquestrar o lifecycle, reduzindo responsabilidade de rede no start/stop
 - regressao validada com testes de integracao do server verdes
 
+### Slice 31 - modularizacao do lifecycle de runtime do server (Concluido)
+
+- start/stop de runtime (http, ws e udp) foi extraido de apps/server/src/index.ts para apps/server/src/server-runtime.ts
+- index.ts passou a delegar bootstrap/teardown de infraestrutura para funcoes dedicadas de runtime
+- ordem de inicializacao e encerramento foi preservada, mantendo contratos atuais
+- regressao validada com testes de integracao do server verdes
 ## 11. Critérios de Conclusão por Slice
 
 Cada slice deve:
@@ -534,11 +540,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 30 concluido em 2026-03-30.
+Slice 31 concluido em 2026-03-30.
 
 Proximo passo recomendado:
 
--> Slice 31: extrair lifecycle de start/stop (http/ws/udp) para modulo de runtime do server, mantendo contratos atuais
+-> Slice 32: extrair gestao de presenca/heartbeat timeout para modulo dedicado e reduzir responsabilidades remanescentes do index.ts
 
 ## 19. ObservaÃ§Ã£o Final
 
