@@ -1,10 +1,9 @@
 import type { Device } from "@luna/shared-types";
-import { isDeviceNameTaken } from "../utils/device";
 import { normalizeWhitespace } from "../utils/value";
+import type { DeviceWritePort } from "./ports";
 
 export interface RenameDeviceUseCaseDependencies {
-  devices: Map<string, Device>;
-  customDeviceAliases: Map<string, string>;
+  deviceWritePort: DeviceWritePort;
 }
 
 export interface RenameDeviceUseCaseInput {
@@ -31,7 +30,7 @@ export class RenameDeviceUseCase {
   public readonly execute = (
     input: RenameDeviceUseCaseInput,
   ): RenameDeviceUseCaseResult => {
-    const currentDevice = this.dependencies.devices.get(input.deviceId);
+    const currentDevice = this.dependencies.deviceWritePort.getById(input.deviceId);
     if (!currentDevice) {
       return {
         kind: "error",
@@ -49,13 +48,7 @@ export class RenameDeviceUseCase {
       };
     }
 
-    if (
-      isDeviceNameTaken(
-        this.dependencies.devices.values(),
-        normalizedName,
-        input.deviceId,
-      )
-    ) {
+    if (this.dependencies.deviceWritePort.isNameTaken(normalizedName, input.deviceId)) {
       return {
         kind: "error",
         statusCode: 409,
@@ -63,13 +56,13 @@ export class RenameDeviceUseCase {
       };
     }
 
-    this.dependencies.customDeviceAliases.set(input.deviceId, normalizedName);
+    this.dependencies.deviceWritePort.setAlias(input.deviceId, normalizedName);
 
     const updatedDevice: Device = {
       ...currentDevice,
       name: normalizedName,
     };
-    this.dependencies.devices.set(input.deviceId, updatedDevice);
+    this.dependencies.deviceWritePort.save(updatedDevice);
 
     return {
       kind: "ok",

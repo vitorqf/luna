@@ -1,10 +1,10 @@
-import type { Device, DiscoveredAgent } from "@luna/shared-types";
-import { isDeviceNameTaken } from "../utils/device";
+import type { Device } from "@luna/shared-types";
 import { normalizeWhitespace } from "../utils/value";
+import type { DeviceWritePort, DiscoveredAgentPort } from "./ports";
 
 export interface ApproveDiscoveredAgentUseCaseDependencies {
-  devices: Map<string, Device>;
-  discoveredAgents: Map<string, DiscoveredAgent>;
+  deviceWritePort: DeviceWritePort;
+  discoveredAgentPort: DiscoveredAgentPort;
 }
 
 export type ApproveDiscoveredAgentUseCaseResult =
@@ -27,7 +27,7 @@ export class ApproveDiscoveredAgentUseCase {
     discoveredAgentId: string,
   ): ApproveDiscoveredAgentUseCaseResult => {
     const normalizedDiscoveredAgentId = normalizeWhitespace(discoveredAgentId);
-    const discoveredAgent = this.dependencies.discoveredAgents.get(
+    const discoveredAgent = this.dependencies.discoveredAgentPort.getById(
       normalizedDiscoveredAgentId,
     );
     if (!discoveredAgent) {
@@ -38,11 +38,11 @@ export class ApproveDiscoveredAgentUseCase {
       };
     }
 
-    const existingDevice = this.dependencies.devices.get(
+    const existingDevice = this.dependencies.deviceWritePort.getById(
       normalizedDiscoveredAgentId,
     );
     if (existingDevice) {
-      this.dependencies.discoveredAgents.delete(normalizedDiscoveredAgentId);
+      this.dependencies.discoveredAgentPort.removeById(normalizedDiscoveredAgentId);
       return {
         kind: "ok",
         device: existingDevice,
@@ -51,8 +51,7 @@ export class ApproveDiscoveredAgentUseCase {
 
     const approvedName = normalizeWhitespace(discoveredAgent.hostname);
     if (
-      isDeviceNameTaken(
-        this.dependencies.devices.values(),
+      this.dependencies.deviceWritePort.isNameTaken(
         approvedName,
         normalizedDiscoveredAgentId,
       )
@@ -72,8 +71,8 @@ export class ApproveDiscoveredAgentUseCase {
       capabilities: [...discoveredAgent.capabilities],
     };
 
-    this.dependencies.devices.set(normalizedDiscoveredAgentId, approvedDevice);
-    this.dependencies.discoveredAgents.delete(normalizedDiscoveredAgentId);
+    this.dependencies.deviceWritePort.save(approvedDevice);
+    this.dependencies.discoveredAgentPort.removeById(normalizedDiscoveredAgentId);
 
     return {
       kind: "ok",

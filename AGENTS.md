@@ -448,6 +448,14 @@ Evitar:
 - dependencias foram injetadas manualmente por construtor (maps e dispatch), sem framework de DI
 - cobertura inicial adicionada com testes unitarios dos 3 use cases e regressao completa do server verde
 
+### Slice 34 - portas da camada de aplicacao (Concluido)
+
+- contratos de portas foram extraidos para apps/server/src/application/ports.ts
+- use cases de submit, rename e approve passaram a depender de portas injetadas em vez de Map/funcoes concretas
+- http-request-handlers passou a montar adapters in-memory para lookup de device, escrita de device, discovery e dispatch
+- contratos HTTP, mensagens e codigos de status foram preservados sem alteracao de comportamento
+- regressao validada com testes unitarios dos use cases e suite completa do server verde
+
 ## 11. Crit�rios de Conclus�o por Slice
 
 Cada slice deve:
@@ -556,11 +564,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 33 concluido em 2026-03-30.
+Slice 34 concluido em 2026-03-30.
 
 Proximo passo recomendado:
 
--> Slice 34: extrair contratos de portas (interfaces) da camada de aplicacao e reduzir acoplamento dos use cases com estruturas concretas (Map e dispatcher), mantendo adapters atuais
+-> Slice 35: extrair parser/resolvedor de target para portas explicitas da aplicacao e mover o wiring de composicao para modulo dedicado, mantendo comportamento atual
 
 ## 19. Observação Final
 
@@ -585,6 +593,4 @@ Antes de implementar qualquer código, leia o AGENTS.md e me diga:
 Só depois disso comece a implementar.
 
 Sempre atualize o AGENTS.md quando concluir um slice
-
-
 

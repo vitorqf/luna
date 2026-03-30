@@ -1,16 +1,13 @@
 import { parseCommand } from "@luna/command-parser";
-import type { Device } from "@luna/shared-types";
+import type { DispatchCommandAcknowledgement } from "../command-dispatcher";
 import type {
-  DispatchCommandAcknowledgement,
-  DispatchCommandInput,
-} from "../command-dispatcher";
-import { resolveDeviceByTarget } from "../utils/device";
+  CommandDispatchPort,
+  TargetDeviceLookupPort,
+} from "./ports";
 
 export interface SubmitCommandUseCaseDependencies {
-  devices: Map<string, Device>;
-  dispatchCommand: (
-    input: DispatchCommandInput,
-  ) => Promise<DispatchCommandAcknowledgement>;
+  targetDeviceLookupPort: TargetDeviceLookupPort;
+  commandDispatchPort: CommandDispatchPort;
 }
 
 export type SubmitCommandUseCaseResult =
@@ -42,8 +39,7 @@ export class SubmitCommandUseCase {
       };
     }
 
-    const targetDevice = resolveDeviceByTarget(
-      this.dependencies.devices.values(),
+    const targetDevice = this.dependencies.targetDeviceLookupPort.resolveByTargetName(
       parsedCommand.targetDeviceName,
     );
     if (!targetDevice) {
@@ -55,12 +51,14 @@ export class SubmitCommandUseCase {
     }
 
     try {
-      const acknowledgement = await this.dependencies.dispatchCommand({
-        rawText: normalizedRawText,
-        targetDeviceId: targetDevice.id,
-        intent: parsedCommand.intent,
-        params: parsedCommand.params,
-      });
+      const acknowledgement = await this.dependencies.commandDispatchPort.dispatch(
+        {
+          rawText: normalizedRawText,
+          targetDeviceId: targetDevice.id,
+          intent: parsedCommand.intent,
+          params: parsedCommand.params,
+        },
+      );
 
       return {
         kind: "ok",

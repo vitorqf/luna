@@ -4,9 +4,19 @@ import { ApproveDiscoveredAgentUseCase } from "../src/application/approve-discov
 
 describe("approve discovered agent use case", () => {
   it("returns 404 when discovered agent is missing", () => {
+    const deviceWritePort = {
+      getById: () => undefined,
+      save: () => undefined,
+      isNameTaken: () => false,
+      setAlias: () => undefined,
+    };
+    const discoveredAgentPort = {
+      getById: () => undefined,
+      removeById: () => undefined,
+    };
     const useCase = new ApproveDiscoveredAgentUseCase({
-      devices: new Map(),
-      discoveredAgents: new Map(),
+      deviceWritePort,
+      discoveredAgentPort,
     });
 
     const result = useCase.execute("missing-agent");
@@ -19,29 +29,23 @@ describe("approve discovered agent use case", () => {
   });
 
   it("returns 409 when approved name is already in use", () => {
+    const deviceWritePort = {
+      getById: () => undefined,
+      save: () => undefined,
+      isNameTaken: () => true,
+      setAlias: () => undefined,
+    };
+    const discoveredAgentPort = {
+      getById: () => ({
+        id: "agent-1",
+        hostname: "Sala",
+        capabilities: ["notify" as const],
+      }),
+      removeById: () => undefined,
+    };
     const useCase = new ApproveDiscoveredAgentUseCase({
-      devices: new Map([
-        [
-          "notebook-1",
-          {
-            id: "notebook-1",
-            name: "Sala",
-            hostname: "notebook-1.local",
-            status: "online",
-            capabilities: ["notify"],
-          },
-        ],
-      ]),
-      discoveredAgents: new Map([
-        [
-          "agent-1",
-          {
-            id: "agent-1",
-            hostname: "Sala",
-            capabilities: ["notify"],
-          },
-        ],
-      ]),
+      deviceWritePort,
+      discoveredAgentPort,
     });
 
     const result = useCase.execute("agent-1");
@@ -54,20 +58,29 @@ describe("approve discovered agent use case", () => {
   });
 
   it("approves discovered agent and creates offline device", () => {
-    const devices = new Map<string, Device>();
-    const discoveredAgents = new Map([
-      [
-        "agent-1",
-        {
-          id: "agent-1",
-          hostname: "Notebook 2",
-          capabilities: ["notify" as const, "open_app" as const],
-        },
-      ],
-    ]);
+    let savedDevice: Device | null = null;
+    let removedId: string | null = null;
+    const deviceWritePort = {
+      getById: () => undefined,
+      save: (device: Device) => {
+        savedDevice = device;
+      },
+      isNameTaken: () => false,
+      setAlias: () => undefined,
+    };
+    const discoveredAgentPort = {
+      getById: () => ({
+        id: "agent-1",
+        hostname: "Notebook 2",
+        capabilities: ["notify" as const, "open_app" as const],
+      }),
+      removeById: (id: string) => {
+        removedId = id;
+      },
+    };
     const useCase = new ApproveDiscoveredAgentUseCase({
-      devices,
-      discoveredAgents,
+      deviceWritePort,
+      discoveredAgentPort,
     });
 
     const result = useCase.execute("agent-1");
@@ -82,6 +95,13 @@ describe("approve discovered agent use case", () => {
         capabilities: ["notify", "open_app"],
       },
     });
-    expect(discoveredAgents.has("agent-1")).toBe(false);
+    expect(savedDevice).toEqual({
+      id: "agent-1",
+      name: "Notebook 2",
+      hostname: "Notebook 2",
+      status: "offline",
+      capabilities: ["notify", "open_app"],
+    });
+    expect(removedId).toBe("agent-1");
   });
 });
