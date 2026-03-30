@@ -3,13 +3,14 @@ import type { Command, Device as ServerDevice } from "@luna/shared-types";
 import { buildStats, mapCommandsToUi, mapDevicesToUi } from "./dashboard-data";
 
 describe("dashboard data mapping", () => {
-  it("maps server devices to ui devices with baseline capabilities", () => {
+  it("maps server devices to ui devices with payload capabilities", () => {
     const devices: ServerDevice[] = [
       {
         id: "server-principal",
         name: "Server Principal",
         hostname: "server-principal.local",
-        status: "online"
+        status: "online",
+        capabilities: ["notify", "set_volume"]
       }
     ];
 
@@ -19,7 +20,7 @@ describe("dashboard data mapping", () => {
         name: "Server Principal",
         type: "server",
         status: "online",
-        capabilities: ["notify", "open_app", "set_volume", "play_media"],
+        capabilities: ["notify", "set_volume"],
         lastSeen: "now"
       }
     ]);

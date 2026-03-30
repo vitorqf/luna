@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest";
 import { connectAgent } from "../../agent/src/index";
 import { createLunaServer } from "../src/index";
 
+const DEFAULT_AGENT_CAPABILITIES = [
+  "notify",
+  "open_app",
+  "set_volume",
+  "play_media"
+] as const;
+
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -57,7 +64,8 @@ describe("slice 2 - devices listing", () => {
           id: "notebook-2",
           name: "Notebook 2",
           hostname: "notebook-2.local",
-          status: "online"
+          status: "online",
+          capabilities: [...DEFAULT_AGENT_CAPABILITIES]
         }
       ]);
     } finally {

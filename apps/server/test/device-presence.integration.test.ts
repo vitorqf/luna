@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest";
 import { connectAgent } from "../../agent/src/index";
 import { createLunaServer } from "../src/index";
 
+const DEFAULT_AGENT_CAPABILITIES = [
+  "notify",
+  "open_app",
+  "set_volume",
+  "play_media"
+] as const;
+
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -48,7 +55,8 @@ describe("slice 18 - device presence", () => {
             id: "notebook-2",
             name: "Notebook 2",
             hostname: "notebook-2.local",
-            status: "online"
+            status: "online",
+            capabilities: [...DEFAULT_AGENT_CAPABILITIES]
           }
         ]);
       });
@@ -62,7 +70,8 @@ describe("slice 18 - device presence", () => {
             id: "notebook-2",
             name: "Notebook 2",
             hostname: "notebook-2.local",
-            status: "offline"
+            status: "offline",
+            capabilities: [...DEFAULT_AGENT_CAPABILITIES]
           }
         ]);
       });
@@ -105,7 +114,8 @@ describe("slice 18 - device presence", () => {
             id: "notebook-2",
             name: "Notebook 2",
             hostname: "notebook-2.local",
-            status: "offline"
+            status: "offline",
+            capabilities: [...DEFAULT_AGENT_CAPABILITIES]
           }
         ]);
       });
@@ -115,7 +125,8 @@ describe("slice 18 - device presence", () => {
         device: {
           id: "notebook-2",
           name: "Notebook 2 Renovado",
-          hostname: "notebook-2-renovado.local"
+          hostname: "notebook-2-renovado.local",
+          capabilities: ["notify"]
         }
       });
 
@@ -125,7 +136,8 @@ describe("slice 18 - device presence", () => {
             id: "notebook-2",
             name: "Notebook 2 Renovado",
             hostname: "notebook-2-renovado.local",
-            status: "online"
+            status: "online",
+            capabilities: ["notify"]
           }
         ]);
       });
@@ -139,7 +151,8 @@ describe("slice 18 - device presence", () => {
           id: "notebook-2",
           name: "Notebook 2 Renovado",
           hostname: "notebook-2-renovado.local",
-          status: "online"
+          status: "online",
+          capabilities: ["notify"]
         }
       ]);
     } finally {
@@ -191,7 +204,8 @@ describe("slice 18 - device presence", () => {
             id: "notebook-2",
             name: "Notebook 2",
             hostname: "notebook-2.local",
-            status: "online"
+            status: "online",
+            capabilities: [...DEFAULT_AGENT_CAPABILITIES]
           }
         ]);
       });
@@ -205,7 +219,8 @@ describe("slice 18 - device presence", () => {
             id: "notebook-2",
             name: "Notebook 2",
             hostname: "notebook-2.local",
-            status: "online"
+            status: "online",
+            capabilities: [...DEFAULT_AGENT_CAPABILITIES]
           }
         ]);
       });
@@ -251,7 +266,8 @@ describe("slice 18 - device presence", () => {
             id: "notebook-2",
             name: "Notebook 2",
             hostname: "notebook-2.local",
-            status: "offline"
+            status: "offline",
+            capabilities: [...DEFAULT_AGENT_CAPABILITIES]
           }
         ]);
       });
@@ -266,7 +282,8 @@ describe("slice 18 - device presence", () => {
           id: "notebook-2",
           name: "Notebook 2",
           hostname: "notebook-2.local",
-          status: "offline"
+          status: "offline",
+          capabilities: [...DEFAULT_AGENT_CAPABILITIES]
         }
       ]);
 

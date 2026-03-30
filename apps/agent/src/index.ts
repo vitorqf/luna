@@ -6,6 +6,7 @@ import {
   parseCommandDispatchMessage,
   type CommandAckPayload
 } from "@luna/protocol";
+import type { DeviceCapability } from "@luna/shared-types";
 import { createNotifyLauncher } from "./notify-launcher";
 import { createOpenAppLauncher } from "./open-app-launcher";
 import { createPlayMediaLauncher } from "./play-media-launcher";
@@ -14,10 +15,18 @@ import { WebSocket } from "ws";
 
 export const agentBootstrapReady = true;
 
+export const SUPPORTED_CAPABILITIES: readonly DeviceCapability[] = [
+  "notify",
+  "open_app",
+  "set_volume",
+  "play_media"
+];
+
 export interface AgentIdentity {
   id: string;
   name: string;
   hostname: string;
+  capabilities?: DeviceCapability[];
 }
 
 export interface ConnectAgentInput {
@@ -175,6 +184,8 @@ export const connectAgent = async (
   input: ConnectAgentInput
 ): Promise<AgentConnection> => {
   const socket = new WebSocket(input.serverUrl);
+  const registerCapabilities =
+    input.device.capabilities ?? SUPPORTED_CAPABILITIES;
   const executeNotify = input.executeNotify ?? executeLocalNotify;
   const executeOpenApp = input.executeOpenApp ?? executeLocalOpenApp;
   const executeSetVolume = input.executeSetVolume ?? executeLocalSetVolume;
@@ -342,7 +353,14 @@ export const connectAgent = async (
   });
 
   await sendSerializedMessage(
-    JSON.stringify(createAgentRegisterMessage(input.device))
+    JSON.stringify(
+      createAgentRegisterMessage({
+        id: input.device.id,
+        name: input.device.name,
+        hostname: input.device.hostname,
+        capabilities: [...registerCapabilities]
+      })
+    )
   );
 
   return {

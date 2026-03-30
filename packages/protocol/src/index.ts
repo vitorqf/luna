@@ -1,3 +1,5 @@
+import type { DeviceCapability } from "@luna/shared-types";
+
 export const protocolBootstrapReady = true;
 
 export const AGENT_REGISTER_MESSAGE_TYPE = "agent.register" as const;
@@ -15,10 +17,18 @@ export type CommandAckFailureReason =
   | typeof COMMAND_ACK_REASON_UNSUPPORTED_INTENT
   | typeof COMMAND_ACK_REASON_EXECUTION_ERROR;
 
+const CANONICAL_DEVICE_CAPABILITIES: readonly DeviceCapability[] = [
+  "notify",
+  "open_app",
+  "set_volume",
+  "play_media",
+];
+
 export interface AgentRegisterPayload {
   id: string;
   name: string;
   hostname: string;
+  capabilities: DeviceCapability[];
 }
 
 export interface AgentRegisterMessage {
@@ -59,6 +69,10 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
+const isDeviceCapability = (value: unknown): value is DeviceCapability =>
+  typeof value === "string" &&
+  (CANONICAL_DEVICE_CAPABILITIES as readonly string[]).includes(value);
+
 export const createAgentRegisterMessage = (
   payload: AgentRegisterPayload
 ): AgentRegisterMessage => ({
@@ -98,7 +112,9 @@ export const isAgentRegisterMessage = (
   return (
     isNonEmptyString(value.payload.id) &&
     isNonEmptyString(value.payload.name) &&
-    isNonEmptyString(value.payload.hostname)
+    isNonEmptyString(value.payload.hostname) &&
+    Array.isArray(value.payload.capabilities) &&
+    value.payload.capabilities.every(isDeviceCapability)
   );
 };
 

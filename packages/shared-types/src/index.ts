@@ -5,12 +5,18 @@ export interface BootstrapContract {
 }
 
 export type DeviceStatus = "online" | "offline";
+export type DeviceCapability =
+  | "notify"
+  | "open_app"
+  | "set_volume"
+  | "play_media";
 
 export interface Device {
   id: string;
   name: string;
   hostname: string;
   status: DeviceStatus;
+  capabilities: DeviceCapability[];
 }
 
 export type CommandStatus = "success" | "failed";

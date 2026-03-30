@@ -1,13 +1,6 @@
 import type { Command as ServerCommand, Device as ServerDevice } from "@luna/shared-types";
 import type { CommandResult, Device, SystemStats } from "./types";
 
-const DEFAULT_CAPABILITIES: Device["capabilities"] = [
-  "notify",
-  "open_app",
-  "set_volume",
-  "play_media"
-];
-
 const reasonMessageByCode: Record<string, string> = {
   invalid_params: "Parâmetros inválidos para executar o comando.",
   unsupported_intent: "Esse dispositivo não suporta este comando.",
@@ -48,7 +41,7 @@ export const mapDevicesToUi = (devices: ServerDevice[]): Device[] =>
     name: device.name,
     type: inferDeviceType(device),
     status: device.status,
-    capabilities: [...DEFAULT_CAPABILITIES],
+    capabilities: [...device.capabilities],
     lastSeen: device.status === "online" ? "now" : "offline"
   }));
 
