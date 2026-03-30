@@ -441,6 +441,13 @@ Evitar:
 - limpeza dos timers de heartbeat no stop passou a usar metodo dedicado do servico
 - regressao validada com testes de integracao do server verdes
 
+### Slice 33 - camada de aplicacao com use cases + DI manual (Concluido)
+
+- casos de uso de submit, rename e approve foram extraidos para classes dedicadas em apps/server/src/application
+- createHttpRequestHandlers passou a atuar como adapter HTTP, delegando regras de negocio aos use cases
+- dependencias foram injetadas manualmente por construtor (maps e dispatch), sem framework de DI
+- cobertura inicial adicionada com testes unitarios dos 3 use cases e regressao completa do server verde
+
 ## 11. Crit�rios de Conclus�o por Slice
 
 Cada slice deve:
@@ -549,11 +556,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 32 concluido em 2026-03-30.
+Slice 33 concluido em 2026-03-30.
 
 Proximo passo recomendado:
 
--> Slice 33: iniciar camada de aplicacao com use cases em classes (submit/rename/approve) com DI manual e adapters atuais
+-> Slice 34: extrair contratos de portas (interfaces) da camada de aplicacao e reduzir acoplamento dos use cases com estruturas concretas (Map e dispatcher), mantendo adapters atuais
 
 ## 19. Observação Final
 
@@ -578,8 +585,6 @@ Antes de implementar qualquer código, leia o AGENTS.md e me diga:
 Só depois disso comece a implementar.
 
 Sempre atualize o AGENTS.md quando concluir um slice
-
-
 
 
 
