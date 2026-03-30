@@ -398,6 +398,13 @@ Evitar:
 - fluxo e contratos foram mantidos sem alteracao de comportamento
 - regressao validada com todos os testes de integracao do server verdes
 
+### Slice 27 - modularizacao dos handlers HTTP do server (Concluido)
+
+- handlers de submit, rename e approve foram extraidos de apps/server/src/index.ts
+- novo modulo apps/server/src/http-request-handlers.ts centraliza regras HTTP dessas rotas
+- index.ts passou a delegar para handlers dedicados, mantendo contratos e respostas
+- regressao validada com testes de integracao do server verdes
+
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -506,11 +513,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 26 concluido em 2026-03-30.
+Slice 27 concluido em 2026-03-30.
 
 Proximo passo recomendado:
 
--> Slice 27: continuar modularizacao do server extraindo handlers HTTP (submit/rename/approve) para reduzir responsabilidade do index.ts
+-> Slice 28: extrair fluxo de WebSocket (register/heartbeat/ack) para modulo dedicado e reduzir complexidade do start()
 
 ## 19. Observa√ß√£o Final
 
