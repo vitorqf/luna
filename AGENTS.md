@@ -527,6 +527,15 @@ Evitar:
 - testes unitarios da state machine adicionados em `apps/server/test/presence-state-machine.unit.test.ts`
 - regressao de presenca validada com `device-presence.integration.test.ts` e `heartbeat-presence.integration.test.ts` verdes
 
+### Slice 43 - repositorios in-memory (ports & adapters completo) (Concluido)
+
+- acesso direto a colecoes foi encapsulado em portas de infraestrutura em `apps/server/src/repositories/ports.ts`
+- adapters concretos in-memory foram implementados em `apps/server/src/repositories/in-memory.ts` para devices, discovery, aliases, historico, conexoes e pending acks
+- wiring do server em `apps/server/src/index.ts` passou a injetar repositorios no lugar de `Map`/array, incluindo leitura e persistencia de snapshot via metodos de repositorio
+- consumidores (`http-request-handlers`, `command-dispatcher`, `presence-service`, `websocket-connection-handlers`, `agent-discovery-udp` e `server-runtime`) foram refatorados para depender de portas de repositorio
+- testes unitarios dos repositorios adicionados em `apps/server/test/in-memory-repositories.unit.test.ts`
+- regressao minima validada com `device-list.integration.test.ts`, `command-history.integration.test.ts`, `agent-discovery.integration.test.ts`, `command-dispatch.integration.test.ts`, `device-presence.integration.test.ts` e `heartbeat-presence.integration.test.ts` verdes
+
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -635,11 +644,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 42 concluido em 2026-03-31.
+Slice 43 concluido em 2026-03-31.
 
 Proximo passo recomendado:
 
--> Slice 43 - repositorios in-memory com portas de leitura/escrita
+-> Slice 44 - a definir
 
 ## 19. Observa√ß√£o Final
 

@@ -1,4 +1,3 @@
-import type { Device, DiscoveredAgent } from "@luna/shared-types";
 import type { Socket } from "node:dgram";
 import {
   createServer,
@@ -8,6 +7,10 @@ import {
 } from "node:http";
 import type { AddressInfo } from "node:net";
 import { WebSocketServer } from "ws";
+import type {
+  DeviceRepository,
+  DiscoveredAgentRepository,
+} from "./repositories/ports";
 import { startAgentDiscoveryUdp, stopAgentDiscoveryUdp } from "./agent-discovery-udp";
 import {
   registerWebSocketConnectionHandlers,
@@ -32,8 +35,8 @@ export interface StartServerRuntimeInput {
     RegisterWebSocketConnectionHandlersInput,
     "webSocketServer"
   >;
-  devices: Map<string, Device>;
-  discoveredAgents: Map<string, DiscoveredAgent>;
+  deviceRepository: DeviceRepository;
+  discoveredAgentRepository: DiscoveredAgentRepository;
 }
 
 export const startServerRuntime = async (
@@ -71,8 +74,8 @@ export const startServerRuntime = async (
   const discoverySocket = await startAgentDiscoveryUdp({
     host: input.host,
     port: runtimePort,
-    devices: input.devices,
-    discoveredAgents: input.discoveredAgents,
+    deviceRepository: input.deviceRepository,
+    discoveredAgentRepository: input.discoveredAgentRepository,
   });
 
   return {

@@ -1,13 +1,16 @@
 import { parseAgentDiscoveryAnnounceMessage } from "@luna/protocol";
-import type { Device, DiscoveredAgent } from "@luna/shared-types";
 import { createSocket, type Socket } from "node:dgram";
+import type {
+  DeviceRepository,
+  DiscoveredAgentRepository,
+} from "./repositories/ports";
 import { normalizeWhitespace } from "./utils/value";
 
 export interface StartAgentDiscoveryUdpInput {
   host: string;
   port: number;
-  devices: Map<string, Device>;
-  discoveredAgents: Map<string, DiscoveredAgent>;
+  deviceRepository: DeviceRepository;
+  discoveredAgentRepository: DiscoveredAgentRepository;
 }
 
 export const startAgentDiscoveryUdp = async (
@@ -23,12 +26,12 @@ export const startAgentDiscoveryUdp = async (
     }
 
     const discoveredAgentId = normalizeWhitespace(announceMessage.payload.id);
-    if (input.devices.has(discoveredAgentId)) {
-      input.discoveredAgents.delete(discoveredAgentId);
+    if (input.deviceRepository.has(discoveredAgentId)) {
+      input.discoveredAgentRepository.removeById(discoveredAgentId);
       return;
     }
 
-    input.discoveredAgents.set(discoveredAgentId, {
+    input.discoveredAgentRepository.upsert({
       id: discoveredAgentId,
       hostname: normalizeWhitespace(announceMessage.payload.hostname),
       capabilities: [...announceMessage.payload.capabilities],

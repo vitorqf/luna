@@ -1,4 +1,3 @@
-import type { Device, DiscoveredAgent } from "@luna/shared-types";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   ApproveDiscoveredAgentUseCase,
@@ -22,14 +21,19 @@ import type {
   DispatchCommandAcknowledgement,
   DispatchCommandInput,
 } from "./command-dispatcher";
+import type {
+  DeviceAliasRepository,
+  DeviceRepository,
+  DiscoveredAgentRepository,
+} from "./repositories/ports";
 import { isDeviceNameTaken, resolveDeviceByTarget } from "./utils/device";
 import { readRawRequestBody, sendJson } from "./utils/http";
 import { isNonEmptyString, isRecord } from "./utils/value";
 
 export interface CreateHttpRequestHandlersInput {
-  devices: Map<string, Device>;
-  discoveredAgents: Map<string, DiscoveredAgent>;
-  customDeviceAliases: Map<string, string>;
+  deviceRepository: DeviceRepository;
+  discoveredAgentRepository: DiscoveredAgentRepository;
+  deviceAliasRepository: DeviceAliasRepository;
   dispatchCommand: (
     input: DispatchCommandInput,
   ) => Promise<DispatchCommandAcknowledgement>;
@@ -56,35 +60,35 @@ export const createHttpRequestHandlers = (
   input: CreateHttpRequestHandlersInput,
 ): HttpRequestHandlers => {
   const {
-    devices,
-    discoveredAgents,
-    customDeviceAliases,
+    deviceRepository,
+    discoveredAgentRepository,
+    deviceAliasRepository,
     dispatchCommand,
     persistState,
   } = input;
   const targetDeviceLookupPort: TargetDeviceLookupPort = {
     resolveByTargetName: (targetName) =>
-      resolveDeviceByTarget(devices.values(), targetName),
+      resolveDeviceByTarget(deviceRepository.list(), targetName),
   };
   const commandDispatchPort: CommandDispatchPort = {
     dispatch: (dispatchInput) => dispatchCommand(dispatchInput),
   };
   const deviceWritePort: DeviceWritePort = {
-    getById: (deviceId) => devices.get(deviceId),
+    getById: (deviceId) => deviceRepository.getById(deviceId),
     save: (device) => {
-      devices.set(device.id, device);
+      deviceRepository.save(device);
       persistState?.();
     },
     isNameTaken: (candidateName, excludedDeviceId) =>
-      isDeviceNameTaken(devices.values(), candidateName, excludedDeviceId),
+      isDeviceNameTaken(deviceRepository.list(), candidateName, excludedDeviceId),
     setAlias: (deviceId, alias) => {
-      customDeviceAliases.set(deviceId, alias);
+      deviceAliasRepository.set(deviceId, alias);
     },
   };
   const discoveredAgentPort: DiscoveredAgentPort = {
-    getById: (discoveredAgentId) => discoveredAgents.get(discoveredAgentId),
+    getById: (discoveredAgentId) => discoveredAgentRepository.getById(discoveredAgentId),
     removeById: (discoveredAgentId) => {
-      discoveredAgents.delete(discoveredAgentId);
+      discoveredAgentRepository.removeById(discoveredAgentId);
     },
   };
   const submitCommandUseCase = new SubmitCommandUseCase({

@@ -1,10 +1,13 @@
-import type { Device } from "@luna/shared-types";
 import type { WebSocket } from "ws";
+import type {
+  ConnectionRepository,
+  DeviceRepository,
+} from "./repositories/ports";
 import { evaluatePresenceTransition } from "./presence-state-machine";
 
 export interface CreatePresenceServiceInput {
-  devices: Map<string, Device>;
-  deviceSockets: Map<string, WebSocket>;
+  deviceRepository: DeviceRepository;
+  connectionRepository: ConnectionRepository;
   heartbeatTimeoutMs: number;
   onDeviceOffline?: (() => void) | undefined;
 }
@@ -15,7 +18,7 @@ export class PresenceService {
   public constructor(private readonly input: CreatePresenceServiceInput) {}
 
   public readonly markDeviceOnlineOnRegister = (deviceId: string): void => {
-    const currentDevice = this.input.devices.get(deviceId);
+    const currentDevice = this.input.deviceRepository.getById(deviceId);
     const decision = evaluatePresenceTransition({
       currentStatus: currentDevice?.status ?? "missing",
       event: "register",
@@ -24,7 +27,7 @@ export class PresenceService {
       return;
     }
 
-    this.input.devices.set(deviceId, {
+    this.input.deviceRepository.save({
       ...currentDevice,
       status: decision.nextStatus,
     });
@@ -41,7 +44,7 @@ export class PresenceService {
   };
 
   public readonly markDeviceOffline = (deviceId: string): void => {
-    const device = this.input.devices.get(deviceId);
+    const device = this.input.deviceRepository.getById(deviceId);
     if (!device) {
       return;
     }
@@ -55,7 +58,7 @@ export class PresenceService {
       return;
     }
 
-    this.input.devices.set(deviceId, {
+    this.input.deviceRepository.save({
       ...device,
       status: decision.nextStatus,
     });
@@ -66,7 +69,7 @@ export class PresenceService {
     deviceId: string,
     isActiveSocket: boolean,
   ): void => {
-    const device = this.input.devices.get(deviceId);
+    const device = this.input.deviceRepository.getById(deviceId);
     const decision = evaluatePresenceTransition({
       currentStatus: device?.status ?? "missing",
       event: "socket_close",
@@ -76,7 +79,7 @@ export class PresenceService {
       return;
     }
 
-    this.input.devices.set(deviceId, {
+    this.input.deviceRepository.save({
       ...device,
       status: decision.nextStatus,
     });
@@ -88,7 +91,7 @@ export class PresenceService {
     isActiveSocket: boolean,
     socket: WebSocket,
   ): void => {
-    const device = this.input.devices.get(deviceId);
+    const device = this.input.deviceRepository.getById(deviceId);
     const decision = evaluatePresenceTransition({
       currentStatus: device?.status ?? "missing",
       event: "heartbeat",
@@ -109,8 +112,9 @@ export class PresenceService {
 
     const timeoutHandle = setTimeout(() => {
       this.heartbeatTimeouts.delete(deviceId);
-      const isActiveSocket = this.input.deviceSockets.get(deviceId) === socket;
-      const device = this.input.devices.get(deviceId);
+      const isActiveSocket =
+        this.input.connectionRepository.getSocketByDeviceId(deviceId) === socket;
+      const device = this.input.deviceRepository.getById(deviceId);
       const decision = evaluatePresenceTransition({
         currentStatus: device?.status ?? "missing",
         event: "heartbeat_timeout",
@@ -120,9 +124,9 @@ export class PresenceService {
         return;
       }
 
-      this.input.deviceSockets.delete(deviceId);
+      this.input.connectionRepository.unbindIfActive(deviceId, socket);
       if (device && decision.shouldTransition) {
-        this.input.devices.set(deviceId, {
+        this.input.deviceRepository.save({
           ...device,
           status: decision.nextStatus,
         });
