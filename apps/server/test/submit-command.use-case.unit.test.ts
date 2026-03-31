@@ -20,8 +20,9 @@ describe("submit command use case", () => {
     expect(commandDispatchPort.dispatch).not.toHaveBeenCalled();
     expect(result).toEqual({
       kind: "error",
-      statusCode: 422,
-      message: "Unable to parse command.",
+      error: {
+        code: "parse_failed",
+      },
     });
   });
 
@@ -45,8 +46,9 @@ describe("submit command use case", () => {
     expect(commandDispatchPort.dispatch).not.toHaveBeenCalled();
     expect(result).toEqual({
       kind: "error",
-      statusCode: 404,
-      message: "Target device is not registered.",
+      error: {
+        code: "target_not_found",
+      },
     });
   });
 
@@ -88,7 +90,7 @@ describe("submit command use case", () => {
     });
     expect(result).toEqual({
       kind: "ok",
-      acknowledgement: {
+      data: {
         commandId: "command-1",
         targetDeviceId: "notebook-2",
         status: "success",
@@ -121,8 +123,9 @@ describe("submit command use case", () => {
     expect(commandDispatchPort.dispatch).toHaveBeenCalledTimes(1);
     expect(result).toEqual({
       kind: "error",
-      statusCode: 500,
-      message: "Failed to dispatch command.",
+      error: {
+        code: "dispatch_failed",
+      },
     });
   });
 });

@@ -1,9 +1,12 @@
+import { stat } from "node:fs/promises";
+import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { config as loadDotEnv } from "dotenv";
 import { createLunaServer, type LunaServer } from "./index";
 
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_PORT = 4000;
+const DEFAULT_STATE_FILE = resolve("data/server-state.json");
 
 interface RuntimeLogger {
   info: (message: string) => void;
@@ -15,6 +18,8 @@ type RuntimeEnv = Record<string, string | undefined>;
 export interface ServerRuntimeConfig {
   host: string;
   port: number;
+  staticDir: string | undefined;
+  stateFile: string;
 }
 
 const parseHost = (value: string | undefined): string => {
@@ -40,6 +45,41 @@ const parsePort = (value: string | undefined): number => {
   return parsedPort;
 };
 
+const parseStaticDir = (value: string | undefined): string | undefined => {
+  const normalized = value?.trim();
+  if (!normalized) {
+    return undefined;
+  }
+
+  return resolve(normalized);
+};
+
+const parseStateFile = (value: string | undefined): string => {
+  const normalized = value?.trim();
+  if (!normalized) {
+    return DEFAULT_STATE_FILE;
+  }
+
+  return resolve(normalized);
+};
+
+const assertStaticDirExists = async (
+  staticDir: string | undefined
+): Promise<void> => {
+  if (!staticDir) {
+    return;
+  }
+
+  try {
+    const staticDirStats = await stat(staticDir);
+    if (!staticDirStats.isDirectory()) {
+      throw new Error("not a directory");
+    }
+  } catch {
+    throw new Error("LUNA_SERVER_STATIC_DIR must point to an existing directory.");
+  }
+};
+
 const waitForShutdownSignal = (): Promise<NodeJS.Signals> =>
   new Promise((resolve) => {
     process.once("SIGINT", () => resolve("SIGINT"));
@@ -59,7 +99,9 @@ export const parseServerRuntimeConfig = (
   env: RuntimeEnv = process.env
 ): ServerRuntimeConfig => ({
   host: parseHost(env.LUNA_SERVER_HOST),
-  port: parsePort(env.LUNA_SERVER_PORT)
+  port: parsePort(env.LUNA_SERVER_PORT),
+  staticDir: parseStaticDir(env.LUNA_SERVER_STATIC_DIR),
+  stateFile: parseStateFile(env.LUNA_SERVER_STATE_FILE)
 });
 
 export const loadServerRuntimeEnvFromFile = (
@@ -79,6 +121,7 @@ export const startServerRuntimeFromEnv = async (
   logger: RuntimeLogger = console
 ): Promise<LunaServer> => {
   const runtimeConfig = parseServerRuntimeConfig(env);
+  await assertStaticDirExists(runtimeConfig.staticDir);
   const server = createLunaServer(runtimeConfig);
   await server.start();
 

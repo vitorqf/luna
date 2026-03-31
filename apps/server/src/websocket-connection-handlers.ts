@@ -3,24 +3,30 @@ import {
   parseAgentRegisterMessage,
   parseCommandAckMessage,
 } from "@luna/protocol";
-import type { Command, Device } from "@luna/shared-types";
 import type { WebSocket, WebSocketServer } from "ws";
 import {
   settlePendingCommandAck,
   type PendingCommandAck,
 } from "./command-dispatcher";
 import type { PresenceService } from "./presence-service";
+import type {
+  CommandHistoryRepository,
+  ConnectionRepository,
+  DeviceAliasRepository,
+  DeviceRepository,
+  PendingAckRepository,
+} from "./repositories/ports";
 import { normalizeWhitespace } from "./utils/value";
 
 export interface RegisterWebSocketConnectionHandlersInput {
   webSocketServer: WebSocketServer;
-  devices: Map<string, Device>;
-  customDeviceAliases: Map<string, string>;
-  commandHistory: Command[];
-  deviceSockets: Map<string, WebSocket>;
-  socketDeviceIds: WeakMap<WebSocket, string>;
-  pendingCommandAcks: Map<string, PendingCommandAck>;
+  deviceRepository: DeviceRepository;
+  deviceAliasRepository: DeviceAliasRepository;
+  commandHistoryRepository: CommandHistoryRepository;
+  connectionRepository: ConnectionRepository;
+  pendingAckRepository: PendingAckRepository<PendingCommandAck>;
   presenceService: PresenceService;
+  persistState?: (() => void) | undefined;
 }
 
 export const registerWebSocketConnectionHandlers = (
@@ -28,29 +34,27 @@ export const registerWebSocketConnectionHandlers = (
 ): void => {
   const {
     webSocketServer,
-    devices,
-    customDeviceAliases,
-    commandHistory,
-    deviceSockets,
-    socketDeviceIds,
-    pendingCommandAcks,
+    deviceRepository,
+    deviceAliasRepository,
+    commandHistoryRepository,
+    connectionRepository,
+    pendingAckRepository,
     presenceService,
+    persistState,
   } = input;
 
   webSocketServer.on("connection", (socket) => {
     socket.on("close", () => {
-      const deviceId = socketDeviceIds.get(socket);
+      const deviceId = connectionRepository.getDeviceIdBySocket(socket);
       if (!deviceId) {
         return;
       }
 
-      if (deviceSockets.get(deviceId) !== socket) {
-        return;
+      const isActiveSocket = connectionRepository.unbindIfActive(deviceId, socket);
+      if (isActiveSocket) {
+        presenceService.clearHeartbeatTimeout(deviceId);
       }
-
-      deviceSockets.delete(deviceId);
-      presenceService.clearHeartbeatTimeout(deviceId);
-      presenceService.markDeviceOffline(deviceId);
+      presenceService.markDeviceOfflineFromSocketClose(deviceId, isActiveSocket);
     });
 
     socket.on("message", (rawMessage) => {
@@ -62,33 +66,32 @@ export const registerWebSocketConnectionHandlers = (
         const registerHostname = normalizeWhitespace(
           registerMessage.payload.hostname,
         );
-        const aliasName = customDeviceAliases.get(deviceId);
+        const aliasName = deviceAliasRepository.getById(deviceId);
 
-        devices.set(deviceId, {
+        deviceRepository.save({
           id: deviceId,
           name: aliasName ?? registerName,
           hostname: registerHostname,
           status: "online",
           capabilities: [...registerMessage.payload.capabilities],
         });
-        deviceSockets.set(deviceId, socket);
-        socketDeviceIds.set(socket, deviceId);
+        presenceService.markDeviceOnlineOnRegister(deviceId);
+        persistState?.();
+        connectionRepository.bind(deviceId, socket);
         presenceService.armHeartbeatTimeout(deviceId, socket);
         return;
       }
 
       const heartbeatMessage = parseAgentHeartbeatMessage(serializedMessage);
       if (heartbeatMessage) {
-        const heartbeatDeviceId = socketDeviceIds.get(socket);
+        const heartbeatDeviceId = connectionRepository.getDeviceIdBySocket(socket);
         if (!heartbeatDeviceId) {
           return;
         }
 
-        if (deviceSockets.get(heartbeatDeviceId) !== socket) {
-          return;
-        }
-
-        presenceService.armHeartbeatTimeout(heartbeatDeviceId, socket);
+        const isActiveSocket =
+          connectionRepository.getSocketByDeviceId(heartbeatDeviceId) === socket;
+        presenceService.onHeartbeat(heartbeatDeviceId, isActiveSocket, socket);
         return;
       }
 
@@ -99,9 +102,10 @@ export const registerWebSocketConnectionHandlers = (
 
       settlePendingCommandAck({
         commandAckPayload: commandAckMessage.payload,
-        ackDeviceId: socketDeviceIds.get(socket),
-        pendingCommandAcks,
-        commandHistory,
+        ackDeviceId: connectionRepository.getDeviceIdBySocket(socket),
+        pendingAckRepository,
+        commandHistoryRepository,
+        persistState,
       });
     });
   });

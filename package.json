@@ -12,9 +12,15 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "tsc -p tsconfig.build.json",
+    "build:web:embedded": "tsx apps/server/src/build-embedded-web.main.ts",
+    "build:artifact:server": "npm run build && npm run build:web:embedded && tsx apps/server/src/build-artifacts.main.ts server",
+    "build:artifact:agent": "npm run build && tsx apps/server/src/build-artifacts.main.ts agent",
+    "build:artifacts": "npm run build && npm run build:web:embedded && tsx apps/server/src/build-artifacts.main.ts server && tsx apps/server/src/build-artifacts.main.ts agent",
     "start:server": "tsx apps/server/src/main.ts",
     "start:agent": "tsx apps/agent/src/main.ts",
-    "start:web": "npm --workspace apps/web run dev"
+    "start:web": "npm --workspace apps/web run dev",
+    "docker:build:server": "docker build -f apps/server/Dockerfile -t luna-server-web .",
+    "docker:run:server": "docker run --rm -p 4000:4000 luna-server-web"
   },
   "devDependencies": {
     "@types/node": "^20.17.57",

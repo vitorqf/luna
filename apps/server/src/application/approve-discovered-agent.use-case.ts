@@ -1,22 +1,21 @@
 import type { Device } from "@luna/shared-types";
 import { normalizeWhitespace } from "../utils/value";
 import type { DeviceWritePort, DiscoveredAgentPort } from "./ports";
+import { err, ok, type UseCaseResult } from "./result";
 
 export interface ApproveDiscoveredAgentUseCaseDependencies {
   deviceWritePort: DeviceWritePort;
   discoveredAgentPort: DiscoveredAgentPort;
 }
 
-export type ApproveDiscoveredAgentUseCaseResult =
-  | {
-      kind: "ok";
-      device: Device;
-    }
-  | {
-      kind: "error";
-      statusCode: 404 | 409;
-      message: string;
-    };
+export type ApproveDiscoveredAgentUseCaseErrorCode =
+  | "discovered_agent_not_found"
+  | "name_taken";
+
+export type ApproveDiscoveredAgentUseCaseResult = UseCaseResult<
+  Device,
+  ApproveDiscoveredAgentUseCaseErrorCode
+>;
 
 export class ApproveDiscoveredAgentUseCase {
   public constructor(
@@ -31,11 +30,7 @@ export class ApproveDiscoveredAgentUseCase {
       normalizedDiscoveredAgentId,
     );
     if (!discoveredAgent) {
-      return {
-        kind: "error",
-        statusCode: 404,
-        message: "Discovered agent not found.",
-      };
+      return err("discovered_agent_not_found");
     }
 
     const existingDevice = this.dependencies.deviceWritePort.getById(
@@ -43,10 +38,7 @@ export class ApproveDiscoveredAgentUseCase {
     );
     if (existingDevice) {
       this.dependencies.discoveredAgentPort.removeById(normalizedDiscoveredAgentId);
-      return {
-        kind: "ok",
-        device: existingDevice,
-      };
+      return ok(existingDevice);
     }
 
     const approvedName = normalizeWhitespace(discoveredAgent.hostname);
@@ -56,11 +48,7 @@ export class ApproveDiscoveredAgentUseCase {
         normalizedDiscoveredAgentId,
       )
     ) {
-      return {
-        kind: "error",
-        statusCode: 409,
-        message: "Device name is already in use.",
-      };
+      return err("name_taken");
     }
 
     const approvedDevice: Device = {
@@ -74,9 +62,6 @@ export class ApproveDiscoveredAgentUseCase {
     this.dependencies.deviceWritePort.save(approvedDevice);
     this.dependencies.discoveredAgentPort.removeById(normalizedDiscoveredAgentId);
 
-    return {
-      kind: "ok",
-      device: approvedDevice,
-    };
+    return ok(approvedDevice);
   };
 }

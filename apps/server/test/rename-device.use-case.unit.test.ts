@@ -20,8 +20,9 @@ describe("rename device use case", () => {
 
     expect(result).toEqual({
       kind: "error",
-      statusCode: 404,
-      message: "Device not found.",
+      error: {
+        code: "device_not_found",
+      },
     });
   });
 
@@ -50,8 +51,9 @@ describe("rename device use case", () => {
 
     expect(result).toEqual({
       kind: "error",
-      statusCode: 409,
-      message: "Device name is already in use.",
+      error: {
+        code: "name_taken",
+      },
     });
   });
 
@@ -89,7 +91,7 @@ describe("rename device use case", () => {
 
     expect(result).toEqual({
       kind: "ok",
-      device: {
+      data: {
         id: "notebook-2",
         name: "Sala Principal",
         hostname: "notebook-2.local",

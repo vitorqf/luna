@@ -456,6 +456,86 @@ Evitar:
 - contratos HTTP, mensagens e codigos de status foram preservados sem alteracao de comportamento
 - regressao validada com testes unitarios dos use cases e suite completa do server verde
 
+### Slice 35 - artefatos separados de build (server vs agent) (Concluido)
+
+- criado builder de artefatos com targets explicitos server e agent
+- artifact de server inclui apenas dist/apps/server + dist/packages/{shared-types,protocol,command-parser}
+- artifact de agent inclui apenas dist/apps/agent + dist/packages/{shared-types,protocol}
+- scripts adicionados: build:artifact:server, build:artifact:agent e build:artifacts
+- testes unitarios adicionados para garantir separacao entre os artefatos e evitar mistura de arquivos de app
+
+### Slice 36 - distribuicao do server via Docker com web embutido (Concluido)
+
+- server passou a servir web exportado de forma opcional via LUNA_SERVER_STATIC_DIR, mantendo prioridade total das rotas REST e WebSocket
+- web passou a usar mesma origem por padrao quando NEXT_PUBLIC_LUNA_SERVER_URL nao estiver configurado
+- artifact de server agora inclui web exportado e node_modules/@luna/* compilado para runtime empacotado
+- novo build embutido do web limpa NEXT_PUBLIC_LUNA_SERVER_URL para evitar hardcode de host local na distribuicao
+- adicionado apps/server/Dockerfile multi-stage para imagem unica com server + web
+- scripts adicionados: build:web:embedded, docker:build:server e docker:run:server
+- smoke test Docker cobre subida do container, GET /devices, GET / e leitura de variavel de porta; quando Docker nao estiver disponivel, o teste faz skip explicito
+
+### Slice 37 - persistencia local do estado do server (Concluido)
+
+- runtime do server ganhou `LUNA_SERVER_STATE_FILE` opcional, com default em `./data/server-state.json`
+- novo store local versionado em JSON persiste `devices`, aliases explicitos e historico de comandos
+- startup do server hidrata o snapshot persistido e normaliza devices carregados para `offline`
+- mutacoes relevantes agora salvam estado apos register/reconnect, offline por close ou heartbeat timeout, rename, approve e append no historico
+- arquivo ausente inicia estado vazio; JSON invalido ou schema invalido falham o startup com erro explicito
+- escrita do snapshot e atomica via arquivo temporario + rename, criando o diretorio pai quando necessario
+- testes unitarios do store, integracao de restart e runtime com arquivo corrompido adicionados e verdes
+
+### Slice 38 - pacote executavel do agent (Concluido)
+
+- artifact do agent agora inclui runtime Node embutido, dependencias externas `dotenv` e `ws`, `.env.example` proprio e launcher nativo da plataforma do build
+- launcher do pacote executa a partir da raiz do artifact e, no primeiro run sem `.env`, gera o arquivo a partir do template, orienta ajuste de `LUNA_AGENT_SERVER_URL` e encerra com codigo 1
+- segundo run do launcher usa o runtime embutido para iniciar `dist/apps/agent/src/main.js` sem depender de Node pre-instalado na maquina alvo
+- builder ganhou overrides opcionais de `runtimeExecutablePath` e `targetPlatform` para cobertura unitaria do empacotamento
+- smoke test do pacote isolado fora do monorepo valida bootstrap de `.env` e conexao real do agent ao server
+- documentacao operacional atualizada com fluxo de build e primeiro uso do pacote do agent
+
+### Slice 39 - dispatcher de intents do agent via strategy registry (Concluido)
+
+- execucao de intents no agent foi extraida de `apps/agent/src/index.ts` para o novo modulo `apps/agent/src/intent-dispatcher.ts`
+- novo dispatcher aplica strategy registry tipado para `notify`, `open_app`, `set_volume` e `play_media`, preservando `ack` canonico (`success|failed` com `invalid_params|unsupported_intent|execution_error`)
+- fluxo de `connectAgent` foi mantido, incluindo ordem de processamento (executa intent, chama `onCommand`, envia `command.ack` no `finally`)
+- erro de callback em `onCommand` continua sem quebrar envio de `ack`, coberto por novo teste de integracao em `command-dispatch.integration.test.ts`
+- testes unitarios do dispatcher adicionados em `apps/agent/test/intent-dispatcher.unit.test.ts` e regressao minima de dispatch/execucao validada verde
+
+### Slice 40 - parser em pipeline de regras (chain, multi-arquivos) (Concluido)
+
+- parser foi refatorado para chain de regras ordenadas com extracao para modulos dedicados em `packages/command-parser/src/rules/`
+- tipos e constantes publicas foram movidos para `parser-types.ts`, com `index.ts` mantendo os mesmos exports publicos
+- utilitarios e padroes de parsing foram centralizados em `parser-utils.ts`, incluindo split por ultimo separador de device
+- novo orquestrador `parser-pipeline.ts` aplica regras na mesma ordem anterior e preserva semantica de early-return para match invalido
+- testes de caracterizacao de precedencia (quoted sobre unquoted e fallback open_app) adicionados em `parser-pipeline.unit.test.ts`
+- regressao validada com `command-parser.unit.test.ts` e `command-submit.integration.test.ts` verdes
+
+### Slice 41 - padronizacao de Result na camada de aplicacao do server (Concluido)
+
+- criado contrato generico `UseCaseResult<Success, ErrorCode>` com helpers `ok(data)` e `err(code)` em `apps/server/src/application/result.ts`
+- use cases de submit, rename e approve passaram a retornar codigos de erro de dominio (`error.code`) em vez de `statusCode/message`
+- `http-request-handlers.ts` passou a mapear `error.code` para HTTP por caso de uso, preservando os mesmos status codes e mensagens externas
+- payload de sucesso dos use cases foi padronizado para `kind: ok` com `data`, sem alterar contrato das rotas
+- regressao validada com unitarios dos 3 use cases e integracoes de submit, rename e discovery/approve verdes
+
+### Slice 42 - presenca com transicoes explicitas via state machine leve (Concluido)
+
+- criada funcao pura de transicao em `apps/server/src/presence-state-machine.ts` cobrindo eventos `register`, `socket_close`, `heartbeat` e `heartbeat_timeout`
+- `PresenceService` passou a aplicar a state machine para transicoes online/offline e para ignorar eventos stale de forma explicita
+- fluxo de register/heartbeat/close no handler WebSocket foi ajustado para delegar decisoes de presenca ao `PresenceService`
+- semantica de reconnect, stale socket e timeout foi preservada, sem mudanca de contratos HTTP/WS
+- testes unitarios da state machine adicionados em `apps/server/test/presence-state-machine.unit.test.ts`
+- regressao de presenca validada com `device-presence.integration.test.ts` e `heartbeat-presence.integration.test.ts` verdes
+
+### Slice 43 - repositorios in-memory (ports & adapters completo) (Concluido)
+
+- acesso direto a colecoes foi encapsulado em portas de infraestrutura em `apps/server/src/repositories/ports.ts`
+- adapters concretos in-memory foram implementados em `apps/server/src/repositories/in-memory.ts` para devices, discovery, aliases, historico, conexoes e pending acks
+- wiring do server em `apps/server/src/index.ts` passou a injetar repositorios no lugar de `Map`/array, incluindo leitura e persistencia de snapshot via metodos de repositorio
+- consumidores (`http-request-handlers`, `command-dispatcher`, `presence-service`, `websocket-connection-handlers`, `agent-discovery-udp` e `server-runtime`) foram refatorados para depender de portas de repositorio
+- testes unitarios dos repositorios adicionados em `apps/server/test/in-memory-repositories.unit.test.ts`
+- regressao minima validada com `device-list.integration.test.ts`, `command-history.integration.test.ts`, `agent-discovery.integration.test.ts`, `command-dispatch.integration.test.ts`, `device-presence.integration.test.ts` e `heartbeat-presence.integration.test.ts` verdes
+
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -564,11 +644,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 34 concluido em 2026-03-30.
+Slice 43 concluido em 2026-03-31.
 
 Proximo passo recomendado:
 
--> Slice 35: extrair parser/resolvedor de target para portas explicitas da aplicacao e mover o wiring de composicao para modulo dedicado, mantendo comportamento atual
+-> Slice 44 - a definir
 
 ## 19. Observa√ß√£o Final
 

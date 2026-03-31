@@ -2,8 +2,13 @@ import {
   createCommandDispatchMessage,
   type CommandAckPayload,
 } from "@luna/protocol";
-import type { Command, Device } from "@luna/shared-types";
 import { WebSocket } from "ws";
+import type {
+  CommandHistoryRepository,
+  ConnectionRepository,
+  DeviceRepository,
+  PendingAckRepository,
+} from "./repositories/ports";
 import { supportsIntent } from "./utils/device";
 
 export interface DispatchCommandInput {
@@ -32,20 +37,22 @@ export interface PendingCommandAck {
 }
 
 export interface CreateCommandDispatcherInput {
-  devices: Map<string, Device>;
-  commandHistory: Command[];
-  deviceSockets: Map<string, WebSocket>;
-  pendingCommandAcks: Map<string, PendingCommandAck>;
+  deviceRepository: DeviceRepository;
+  commandHistoryRepository: CommandHistoryRepository;
+  connectionRepository: ConnectionRepository;
+  pendingAckRepository: PendingAckRepository<PendingCommandAck>;
   createCommandId: () => string;
+  persistState?: (() => void) | undefined;
 }
 
 export const settlePendingCommandAck = (input: {
   commandAckPayload: CommandAckPayload;
   ackDeviceId: string | undefined;
-  pendingCommandAcks: Map<string, PendingCommandAck>;
-  commandHistory: Command[];
+  pendingAckRepository: PendingAckRepository<PendingCommandAck>;
+  commandHistoryRepository: CommandHistoryRepository;
+  persistState?: (() => void) | undefined;
 }): boolean => {
-  const pendingAck = input.pendingCommandAcks.get(input.commandAckPayload.commandId);
+  const pendingAck = input.pendingAckRepository.get(input.commandAckPayload.commandId);
   if (!pendingAck) {
     return false;
   }
@@ -54,10 +61,10 @@ export const settlePendingCommandAck = (input: {
     return false;
   }
 
-  input.pendingCommandAcks.delete(input.commandAckPayload.commandId);
+  input.pendingAckRepository.delete(input.commandAckPayload.commandId);
   clearTimeout(pendingAck.timeoutHandle);
   if (input.commandAckPayload.status === "failed") {
-    input.commandHistory.push({
+    input.commandHistoryRepository.append({
       id: input.commandAckPayload.commandId,
       rawText: pendingAck.rawText,
       intent: pendingAck.intent,
@@ -66,6 +73,7 @@ export const settlePendingCommandAck = (input: {
       status: "failed",
       reason: input.commandAckPayload.reason,
     });
+    input.persistState?.();
     pendingAck.resolve({
       commandId: input.commandAckPayload.commandId,
       targetDeviceId: pendingAck.targetDeviceId,
@@ -75,7 +83,7 @@ export const settlePendingCommandAck = (input: {
     return true;
   }
 
-  input.commandHistory.push({
+  input.commandHistoryRepository.append({
     id: input.commandAckPayload.commandId,
     rawText: pendingAck.rawText,
     intent: pendingAck.intent,
@@ -83,6 +91,7 @@ export const settlePendingCommandAck = (input: {
     params: pendingAck.params,
     status: "success",
   });
+  input.persistState?.();
   pendingAck.resolve({
     commandId: input.commandAckPayload.commandId,
     targetDeviceId: pendingAck.targetDeviceId,
@@ -94,21 +103,29 @@ export const settlePendingCommandAck = (input: {
 export const createCommandDispatcher = (
   input: CreateCommandDispatcherInput,
 ): ((input: DispatchCommandInput) => Promise<DispatchCommandAcknowledgement>) => {
-  const { devices, commandHistory, deviceSockets, pendingCommandAcks, createCommandId } =
-    input;
+  const {
+    deviceRepository,
+    commandHistoryRepository,
+    connectionRepository,
+    pendingAckRepository,
+    createCommandId,
+    persistState,
+  } = input;
 
   return async (
     dispatchInput: DispatchCommandInput,
   ): Promise<DispatchCommandAcknowledgement> => {
-    const socket = deviceSockets.get(dispatchInput.targetDeviceId);
+    const socket = connectionRepository.getSocketByDeviceId(
+      dispatchInput.targetDeviceId,
+    );
     if (!socket || socket.readyState !== WebSocket.OPEN) {
       throw new Error(`Device ${dispatchInput.targetDeviceId} is not connected.`);
     }
 
     const commandId = createCommandId();
-    const targetDevice = devices.get(dispatchInput.targetDeviceId);
+    const targetDevice = deviceRepository.getById(dispatchInput.targetDeviceId);
     if (targetDevice && !supportsIntent(targetDevice, dispatchInput.intent)) {
-      commandHistory.push({
+      commandHistoryRepository.append({
         id: commandId,
         rawText: dispatchInput.rawText ?? "",
         intent: dispatchInput.intent,
@@ -117,6 +134,7 @@ export const createCommandDispatcher = (
         status: "failed",
         reason: "unsupported_intent",
       });
+      persistState?.();
 
       return {
         commandId,
@@ -137,7 +155,7 @@ export const createCommandDispatcher = (
     return new Promise<DispatchCommandAcknowledgement>((resolve, reject) => {
       const ackTimeoutMs = dispatchInput.ackTimeoutMs ?? 1_000;
       const timeoutHandle = setTimeout(() => {
-        pendingCommandAcks.delete(commandId);
+        pendingAckRepository.delete(commandId);
         reject(
           new Error(
             `Timed out waiting for ack from device ${dispatchInput.targetDeviceId}.`,
@@ -145,7 +163,7 @@ export const createCommandDispatcher = (
         );
       }, ackTimeoutMs);
 
-      pendingCommandAcks.set(commandId, {
+      pendingAckRepository.set(commandId, {
         rawText: dispatchInput.rawText ?? "",
         intent: dispatchInput.intent,
         params: dispatchInput.params,
@@ -161,7 +179,7 @@ export const createCommandDispatcher = (
         }
 
         clearTimeout(timeoutHandle);
-        pendingCommandAcks.delete(commandId);
+        pendingAckRepository.delete(commandId);
         reject(error);
       });
     });

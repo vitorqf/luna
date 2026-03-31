@@ -12,6 +12,7 @@ const makeJsonResponse = (payload: unknown, status = 200): Response =>
 describe("luna api client", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("fetches devices from GET /devices", async () => {
@@ -42,6 +43,36 @@ describe("luna api client", () => {
         capabilities: ["notify", "open_app"]
       }
     ]);
+  });
+
+  it("uses same-origin relative endpoints when base url is not configured outside browser context", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(makeJsonResponse([]));
+
+    const client = createLunaApiClient();
+    await client.fetchDevices();
+
+    expect(fetchMock).toHaveBeenCalledWith("/devices", undefined);
+  });
+
+  it("uses the local server url during standalone web dev when base url is not configured", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(makeJsonResponse([]));
+
+    vi.stubGlobal("window", {
+      location: {
+        protocol: "http:",
+        hostname: "127.0.0.1",
+        port: "3000"
+      }
+    });
+
+    const client = createLunaApiClient();
+    await client.fetchDevices();
+
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:4000/devices", undefined);
   });
 
   it("submits command text to POST /commands", async () => {

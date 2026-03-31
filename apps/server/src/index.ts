@@ -9,11 +9,15 @@ import {
   type Server as HttpServer,
   type ServerResponse,
 } from "node:http";
-import { WebSocket, type WebSocketServer } from "ws";
+import { type WebSocketServer } from "ws";
 import {
   createCommandDispatcher,
   type PendingCommandAck,
 } from "./command-dispatcher";
+import {
+  loadPersistedServerState,
+  savePersistedServerState,
+} from "./server-state-store";
 import { sendJson, sendNoContent } from "./utils/http";
 import { createHttpRequestHandlers } from "./http-request-handlers";
 import {
@@ -26,6 +30,15 @@ import {
   stopServerRuntime,
 } from "./server-runtime";
 import { PresenceService } from "./presence-service";
+import {
+  createInMemoryCommandHistoryRepository,
+  createInMemoryConnectionRepository,
+  createInMemoryDeviceAliasRepository,
+  createInMemoryDeviceRepository,
+  createInMemoryDiscoveredAgentRepository,
+  createInMemoryPendingAckRepository,
+} from "./repositories/in-memory";
+import { serveStaticAsset } from "./static-web";
 
 export const serverBootstrapReady = true;
 
@@ -33,6 +46,8 @@ export interface LunaServerOptions {
   host?: string;
   port?: number;
   heartbeatTimeoutMs?: number;
+  staticDir?: string | undefined;
+  stateFile?: string;
 }
 
 export interface LunaServer {
@@ -65,36 +80,51 @@ export interface DispatchCommandAcknowledgement {
 export const createLunaServer = (
   options: LunaServerOptions = {},
 ): LunaServer => {
-  const devices = new Map<string, Device>();
-  const discoveredAgents = new Map<string, DiscoveredAgent>();
-  const customDeviceAliases = new Map<string, string>();
-  const commandHistory: Command[] = [];
-  const deviceSockets = new Map<string, WebSocket>();
-  const socketDeviceIds = new WeakMap<WebSocket, string>();
-  const pendingCommandAcks = new Map<string, PendingCommandAck>();
+  const deviceRepository = createInMemoryDeviceRepository();
+  const discoveredAgentRepository = createInMemoryDiscoveredAgentRepository();
+  const deviceAliasRepository = createInMemoryDeviceAliasRepository();
+  const commandHistoryRepository = createInMemoryCommandHistoryRepository();
+  const connectionRepository = createInMemoryConnectionRepository();
+  const pendingAckRepository =
+    createInMemoryPendingAckRepository<PendingCommandAck>();
   const host = options.host ?? "127.0.0.1";
   const heartbeatTimeoutMs = options.heartbeatTimeoutMs ?? 15_000;
+  const staticDir = options.staticDir;
+  const stateFile = options.stateFile;
   let port = options.port ?? 0;
   let httpServer: HttpServer | undefined;
   let webSocketServer: WebSocketServer | undefined;
   let discoverySocket: Socket | undefined;
+  const persistState = (): void => {
+    if (!stateFile) {
+      return;
+    }
+
+    savePersistedServerState(stateFile, {
+      devices: deviceRepository.list(),
+      customDeviceAliases: deviceAliasRepository.toRecord(),
+      commandHistory: commandHistoryRepository.list(),
+    });
+  };
   const presenceService = new PresenceService({
-    devices,
-    deviceSockets,
+    deviceRepository,
+    connectionRepository,
     heartbeatTimeoutMs,
+    onDeviceOffline: persistState,
   });
 
-  const getRegisteredDevices = (): Device[] => Array.from(devices.values());
+  const getRegisteredDevices = (): Device[] => deviceRepository.list();
   const getDiscoveredAgents = (): DiscoveredAgent[] =>
-    Array.from(discoveredAgents.values());
-  const getCommandHistory = (): Command[] => [...commandHistory];
+    discoveredAgentRepository.list();
+  const getCommandHistory = (): Command[] => commandHistoryRepository.list();
 
   const dispatchCommand = createCommandDispatcher({
-    devices,
-    commandHistory,
-    deviceSockets,
-    pendingCommandAcks,
+    deviceRepository,
+    commandHistoryRepository,
+    connectionRepository,
+    pendingAckRepository,
     createCommandId: randomUUID,
+    persistState,
   });
 
   const {
@@ -102,60 +132,80 @@ export const createLunaServer = (
     handleRenameDevice,
     handleApproveDiscoveredAgent,
   } = createHttpRequestHandlers({
-    devices,
-    discoveredAgents,
-    customDeviceAliases,
+    deviceRepository,
+    discoveredAgentRepository,
+    deviceAliasRepository,
     dispatchCommand,
+    persistState,
   });
 
   const handleRequest = (
     request: IncomingMessage,
     response: ServerResponse,
   ): void => {
-    if (request.method === "OPTIONS") {
-      sendNoContent(response);
-      return;
-    }
-
-    if (request.method === "GET" && request.url === "/devices") {
-      sendJson(response, 200, getRegisteredDevices());
-      return;
-    }
-
-    if (request.method === "GET" && request.url === "/commands") {
-      sendJson(response, 200, getCommandHistory());
-      return;
-    }
-
-    if (request.method === "GET" && request.url === "/discovery/agents") {
-      sendJson(response, 200, getDiscoveredAgents());
-      return;
-    }
-
-    if (request.method === "POST" && request.url === "/commands") {
-      void handleSubmitCommand(request, response);
-      return;
-    }
-
-    if (request.method === "PATCH" && isNonEmptyString(request.url)) {
-      const deviceId = extractDeviceIdFromPatchRoute(request.url);
-      if (deviceId) {
-        void handleRenameDevice(request, response, deviceId);
+    void (async () => {
+      if (request.method === "OPTIONS") {
+        sendNoContent(response);
         return;
       }
-    }
 
-    if (request.method === "POST" && isNonEmptyString(request.url)) {
-      const discoveredAgentId = extractDiscoveredAgentIdFromApproveRoute(
-        request.url,
-      );
-      if (discoveredAgentId) {
-        handleApproveDiscoveredAgent(response, discoveredAgentId);
+      if (request.method === "GET" && request.url === "/devices") {
+        sendJson(response, 200, getRegisteredDevices());
         return;
       }
-    }
 
-    sendJson(response, 404, { message: "Not Found" });
+      if (request.method === "GET" && request.url === "/commands") {
+        sendJson(response, 200, getCommandHistory());
+        return;
+      }
+
+      if (request.method === "GET" && request.url === "/discovery/agents") {
+        sendJson(response, 200, getDiscoveredAgents());
+        return;
+      }
+
+      if (request.method === "POST" && request.url === "/commands") {
+        await handleSubmitCommand(request, response);
+        return;
+      }
+
+      if (request.method === "PATCH" && isNonEmptyString(request.url)) {
+        const deviceId = extractDeviceIdFromPatchRoute(request.url);
+        if (deviceId) {
+          await handleRenameDevice(request, response, deviceId);
+          return;
+        }
+      }
+
+      if (request.method === "POST" && isNonEmptyString(request.url)) {
+        const discoveredAgentId = extractDiscoveredAgentIdFromApproveRoute(
+          request.url,
+        );
+        if (discoveredAgentId) {
+          handleApproveDiscoveredAgent(response, discoveredAgentId);
+          return;
+        }
+      }
+
+      if (
+        await serveStaticAsset({
+          request,
+          response,
+          staticDir,
+        })
+      ) {
+        return;
+      }
+
+      sendJson(response, 404, { message: "Not Found" });
+    })().catch(() => {
+      if (response.headersSent) {
+        response.destroy();
+        return;
+      }
+
+      sendJson(response, 500, { message: "Internal Server Error" });
+    });
   };
 
   const start = async (): Promise<void> => {
@@ -163,21 +213,40 @@ export const createLunaServer = (
       return;
     }
 
+    if (stateFile) {
+      const persistedState = loadPersistedServerState(stateFile);
+      deviceRepository.clear();
+      discoveredAgentRepository.clear();
+      deviceAliasRepository.clear();
+      commandHistoryRepository.clear();
+
+      for (const persistedDevice of persistedState.devices) {
+        deviceRepository.save({
+          ...persistedDevice,
+          status: "offline",
+          capabilities: [...persistedDevice.capabilities],
+        });
+      }
+
+      deviceAliasRepository.loadFromRecord(persistedState.customDeviceAliases);
+      commandHistoryRepository.replaceAll(persistedState.commandHistory);
+    }
+
     const startedRuntime = await startServerRuntime({
       host,
       port,
       handleRequest,
       websocketHandlers: {
-        devices,
-        customDeviceAliases,
-        commandHistory,
-        deviceSockets,
-        socketDeviceIds,
-        pendingCommandAcks,
+        deviceRepository,
+        deviceAliasRepository,
+        commandHistoryRepository,
+        connectionRepository,
+        pendingAckRepository,
         presenceService,
+        persistState,
       },
-      devices,
-      discoveredAgents,
+      deviceRepository,
+      discoveredAgentRepository,
     });
     httpServer = startedRuntime.httpServer;
     webSocketServer = startedRuntime.webSocketServer;
@@ -190,12 +259,12 @@ export const createLunaServer = (
       return;
     }
 
-    for (const [commandId, pendingAck] of pendingCommandAcks.entries()) {
+    for (const [commandId, pendingAck] of pendingAckRepository.entries()) {
       clearTimeout(pendingAck.timeoutHandle);
       pendingAck.reject(
         new Error(`Server stopped before ack for command ${commandId}.`),
       );
-      pendingCommandAcks.delete(commandId);
+      pendingAckRepository.delete(commandId);
     }
 
     presenceService.clearAllHeartbeatTimeouts();
