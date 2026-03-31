@@ -46,13 +46,12 @@ export const registerWebSocketConnectionHandlers = (
         return;
       }
 
-      if (deviceSockets.get(deviceId) !== socket) {
-        return;
+      const isActiveSocket = deviceSockets.get(deviceId) === socket;
+      if (isActiveSocket) {
+        deviceSockets.delete(deviceId);
+        presenceService.clearHeartbeatTimeout(deviceId);
       }
-
-      deviceSockets.delete(deviceId);
-      presenceService.clearHeartbeatTimeout(deviceId);
-      presenceService.markDeviceOffline(deviceId);
+      presenceService.markDeviceOfflineFromSocketClose(deviceId, isActiveSocket);
     });
 
     socket.on("message", (rawMessage) => {
@@ -73,6 +72,7 @@ export const registerWebSocketConnectionHandlers = (
           status: "online",
           capabilities: [...registerMessage.payload.capabilities],
         });
+        presenceService.markDeviceOnlineOnRegister(deviceId);
         persistState?.();
         deviceSockets.set(deviceId, socket);
         socketDeviceIds.set(socket, deviceId);
@@ -87,11 +87,8 @@ export const registerWebSocketConnectionHandlers = (
           return;
         }
 
-        if (deviceSockets.get(heartbeatDeviceId) !== socket) {
-          return;
-        }
-
-        presenceService.armHeartbeatTimeout(heartbeatDeviceId, socket);
+        const isActiveSocket = deviceSockets.get(heartbeatDeviceId) === socket;
+        presenceService.onHeartbeat(heartbeatDeviceId, isActiveSocket, socket);
         return;
       }
 

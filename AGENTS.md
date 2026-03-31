@@ -518,6 +518,15 @@ Evitar:
 - payload de sucesso dos use cases foi padronizado para `kind: ok` com `data`, sem alterar contrato das rotas
 - regressao validada com unitarios dos 3 use cases e integracoes de submit, rename e discovery/approve verdes
 
+### Slice 42 - presenca com transicoes explicitas via state machine leve (Concluido)
+
+- criada funcao pura de transicao em `apps/server/src/presence-state-machine.ts` cobrindo eventos `register`, `socket_close`, `heartbeat` e `heartbeat_timeout`
+- `PresenceService` passou a aplicar a state machine para transicoes online/offline e para ignorar eventos stale de forma explicita
+- fluxo de register/heartbeat/close no handler WebSocket foi ajustado para delegar decisoes de presenca ao `PresenceService`
+- semantica de reconnect, stale socket e timeout foi preservada, sem mudanca de contratos HTTP/WS
+- testes unitarios da state machine adicionados em `apps/server/test/presence-state-machine.unit.test.ts`
+- regressao de presenca validada com `device-presence.integration.test.ts` e `heartbeat-presence.integration.test.ts` verdes
+
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -626,11 +635,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 41 concluido em 2026-03-31.
+Slice 42 concluido em 2026-03-31.
 
 Proximo passo recomendado:
 
--> Slice 42 - transicoes explicitas de presenca (state machine leve)
+-> Slice 43 - repositorios in-memory com portas de leitura/escrita
 
 ## 19. Observa√ß√£o Final
 
