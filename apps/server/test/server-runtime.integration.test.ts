@@ -111,20 +111,28 @@ describe("slice 9 - server runtime", () => {
   });
 
   it("starts runtime from env and responds to GET /devices", async () => {
-    const server = await startServerRuntimeFromEnv({
-      LUNA_SERVER_HOST: "127.0.0.1",
-      LUNA_SERVER_PORT: "0"
-    });
+    const tempDir = await mkdtemp(join(tmpdir(), "luna-server-runtime-"));
+    const stateFile = join(tempDir, "server-state.json");
 
     try {
-      const response = await fetch(
-        `http://127.0.0.1:${server.getPort()}/devices`
-      );
+      const server = await startServerRuntimeFromEnv({
+        LUNA_SERVER_HOST: "127.0.0.1",
+        LUNA_SERVER_PORT: "0",
+        LUNA_SERVER_STATE_FILE: stateFile
+      });
 
-      expect(response.status).toBe(200);
-      await expect(response.json()).resolves.toEqual([]);
+      try {
+        const response = await fetch(
+          `http://127.0.0.1:${server.getPort()}/devices`
+        );
+
+        expect(response.status).toBe(200);
+        await expect(response.json()).resolves.toEqual([]);
+      } finally {
+        await server.stop();
+      }
     } finally {
-      await server.stop();
+      await rm(tempDir, { recursive: true, force: true });
     }
   });
 
@@ -146,7 +154,8 @@ describe("slice 9 - server runtime", () => {
     const server = await startServerRuntimeFromEnv({
       LUNA_SERVER_HOST: "127.0.0.1",
       LUNA_SERVER_PORT: "0",
-      LUNA_SERVER_STATIC_DIR: staticDir
+      LUNA_SERVER_STATIC_DIR: staticDir,
+      LUNA_SERVER_STATE_FILE: join(tempDir, "server-state.json")
     });
 
     try {
