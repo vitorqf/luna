@@ -23,8 +23,9 @@ describe("approve discovered agent use case", () => {
 
     expect(result).toEqual({
       kind: "error",
-      statusCode: 404,
-      message: "Discovered agent not found.",
+      error: {
+        code: "discovered_agent_not_found",
+      },
     });
   });
 
@@ -52,8 +53,9 @@ describe("approve discovered agent use case", () => {
 
     expect(result).toEqual({
       kind: "error",
-      statusCode: 409,
-      message: "Device name is already in use.",
+      error: {
+        code: "name_taken",
+      },
     });
   });
 
@@ -87,7 +89,7 @@ describe("approve discovered agent use case", () => {
 
     expect(result).toEqual({
       kind: "ok",
-      device: {
+      data: {
         id: "agent-1",
         name: "Notebook 2",
         hostname: "Notebook 2",

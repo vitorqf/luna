@@ -510,6 +510,14 @@ Evitar:
 - testes de caracterizacao de precedencia (quoted sobre unquoted e fallback open_app) adicionados em `parser-pipeline.unit.test.ts`
 - regressao validada com `command-parser.unit.test.ts` e `command-submit.integration.test.ts` verdes
 
+### Slice 41 - padronizacao de Result na camada de aplicacao do server (Concluido)
+
+- criado contrato generico `UseCaseResult<Success, ErrorCode>` com helpers `ok(data)` e `err(code)` em `apps/server/src/application/result.ts`
+- use cases de submit, rename e approve passaram a retornar codigos de erro de dominio (`error.code`) em vez de `statusCode/message`
+- `http-request-handlers.ts` passou a mapear `error.code` para HTTP por caso de uso, preservando os mesmos status codes e mensagens externas
+- payload de sucesso dos use cases foi padronizado para `kind: ok` com `data`, sem alterar contrato das rotas
+- regressao validada com unitarios dos 3 use cases e integracoes de submit, rename e discovery/approve verdes
+
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -618,11 +626,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 40 concluido em 2026-03-31.
+Slice 41 concluido em 2026-03-31.
 
 Proximo passo recomendado:
 
--> Slice 41 - padronizacao de Result na camada de aplicacao do server
+-> Slice 42 - transicoes explicitas de presenca (state machine leve)
 
 ## 19. Observa√ß√£o Final
 

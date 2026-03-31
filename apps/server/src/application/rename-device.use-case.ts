@@ -1,6 +1,7 @@
 import type { Device } from "@luna/shared-types";
 import { normalizeWhitespace } from "../utils/value";
 import type { DeviceWritePort } from "./ports";
+import { err, ok, type UseCaseResult } from "./result";
 
 export interface RenameDeviceUseCaseDependencies {
   deviceWritePort: DeviceWritePort;
@@ -11,16 +12,15 @@ export interface RenameDeviceUseCaseInput {
   name: string;
 }
 
-export type RenameDeviceUseCaseResult =
-  | {
-      kind: "ok";
-      device: Device;
-    }
-  | {
-      kind: "error";
-      statusCode: 400 | 404 | 409;
-      message: string;
-    };
+export type RenameDeviceUseCaseErrorCode =
+  | "device_not_found"
+  | "name_required"
+  | "name_taken";
+
+export type RenameDeviceUseCaseResult = UseCaseResult<
+  Device,
+  RenameDeviceUseCaseErrorCode
+>;
 
 export class RenameDeviceUseCase {
   public constructor(
@@ -32,28 +32,16 @@ export class RenameDeviceUseCase {
   ): RenameDeviceUseCaseResult => {
     const currentDevice = this.dependencies.deviceWritePort.getById(input.deviceId);
     if (!currentDevice) {
-      return {
-        kind: "error",
-        statusCode: 404,
-        message: "Device not found.",
-      };
+      return err("device_not_found");
     }
 
     const normalizedName = normalizeWhitespace(input.name);
     if (!normalizedName) {
-      return {
-        kind: "error",
-        statusCode: 400,
-        message: "name is required.",
-      };
+      return err("name_required");
     }
 
     if (this.dependencies.deviceWritePort.isNameTaken(normalizedName, input.deviceId)) {
-      return {
-        kind: "error",
-        statusCode: 409,
-        message: "Device name is already in use.",
-      };
+      return err("name_taken");
     }
 
     this.dependencies.deviceWritePort.setAlias(input.deviceId, normalizedName);
@@ -64,9 +52,6 @@ export class RenameDeviceUseCase {
     };
     this.dependencies.deviceWritePort.save(updatedDevice);
 
-    return {
-      kind: "ok",
-      device: updatedDevice,
-    };
+    return ok(updatedDevice);
   };
 }
