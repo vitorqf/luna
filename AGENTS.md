@@ -501,6 +501,15 @@ Evitar:
 - erro de callback em `onCommand` continua sem quebrar envio de `ack`, coberto por novo teste de integracao em `command-dispatch.integration.test.ts`
 - testes unitarios do dispatcher adicionados em `apps/agent/test/intent-dispatcher.unit.test.ts` e regressao minima de dispatch/execucao validada verde
 
+### Slice 40 - parser em pipeline de regras (chain, multi-arquivos) (Concluido)
+
+- parser foi refatorado para chain de regras ordenadas com extracao para modulos dedicados em `packages/command-parser/src/rules/`
+- tipos e constantes publicas foram movidos para `parser-types.ts`, com `index.ts` mantendo os mesmos exports publicos
+- utilitarios e padroes de parsing foram centralizados em `parser-utils.ts`, incluindo split por ultimo separador de device
+- novo orquestrador `parser-pipeline.ts` aplica regras na mesma ordem anterior e preserva semantica de early-return para match invalido
+- testes de caracterizacao de precedencia (quoted sobre unquoted e fallback open_app) adicionados em `parser-pipeline.unit.test.ts`
+- regressao validada com `command-parser.unit.test.ts` e `command-submit.integration.test.ts` verdes
+
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -609,11 +618,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 39 concluido em 2026-03-30.
+Slice 40 concluido em 2026-03-31.
 
 Proximo passo recomendado:
 
--> Slice 40 - parser em pipeline de regras (chain)
+-> Slice 41 - padronizacao de Result na camada de aplicacao do server
 
 ## 19. Observa√ß√£o Final
 
