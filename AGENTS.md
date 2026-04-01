@@ -536,6 +536,23 @@ Evitar:
 - testes unitarios dos repositorios adicionados em `apps/server/test/in-memory-repositories.unit.test.ts`
 - regressao minima validada com `device-list.integration.test.ts`, `command-history.integration.test.ts`, `agent-discovery.integration.test.ts`, `command-dispatch.integration.test.ts`, `device-presence.integration.test.ts` e `heartbeat-presence.integration.test.ts` verdes
 
+### Slice 44 - HTTP handlers com pipeline de request (Concluido)
+
+- parse e validacao de body JSON para `POST /commands` e `PATCH /devices/:id` foram centralizados em um pipeline unico interno em `apps/server/src/http-request-handlers.ts`
+- validadores dedicados (`validateSubmitBody` e `validateRenameBody`) passaram a encapsular regras de campos obrigatorios sem duplicar `try/catch` por handler
+- mensagens e status de erro foram preservados (`Invalid JSON body.`, `rawText is required.`, `name is required.`), mantendo contratos HTTP externos
+- `handleApproveDiscoveredAgent` permaneceu sem leitura de body e sem alteracoes comportamentais
+- testes de integracao adicionados para JSON invalido e campo obrigatorio ausente em submit e rename
+- regressao validada com `command-submit.integration.test.ts`, `device-rename.integration.test.ts` e `agent-discovery.integration.test.ts` verdes
+
+### Slice 45 - schemas zod no pipeline de request com contrato de erro retrocompativel (Concluido)
+
+- pipeline de parsing/validacao em `apps/server/src/http-request-handlers.ts` passou a usar schemas `zod` para `POST /commands` e `PATCH /devices/:id`
+- schemas `submitCommandBodySchema` e `renameDeviceBodySchema` substituem validacao manual e mantem regra de string nao vazia sem alterar payload de entrada
+- mapeamento de erro foi mantido retrocompativel: JSON invalido retorna `Invalid JSON body.`, body invalido continua retornando `rawText is required.` ou `name is required.`
+- testes de integracao foram ampliados para tipos invalidos de campos obrigatorios em submit e rename, preservando o contrato HTTP existente
+- regressao validada com `command-submit.integration.test.ts`, `device-rename.integration.test.ts` e `agent-discovery.integration.test.ts` verdes
+
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -644,11 +661,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 43 concluido em 2026-03-31.
+Slice 45 concluido em 2026-03-31.
 
 Proximo passo recomendado:
 
--> Slice 44 - a definir
+-> Slice 46 - a definir
 
 ## 19. Observa√ß√£o Final
 

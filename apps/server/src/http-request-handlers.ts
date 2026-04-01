@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { z } from "zod";
 import {
   ApproveDiscoveredAgentUseCase,
   type ApproveDiscoveredAgentUseCaseErrorCode,
@@ -28,7 +29,55 @@ import type {
 } from "./repositories/ports";
 import { isDeviceNameTaken, resolveDeviceByTarget } from "./utils/device";
 import { readRawRequestBody, sendJson } from "./utils/http";
-import { isNonEmptyString, isRecord } from "./utils/value";
+
+const INVALID_JSON_BODY_MESSAGE = "Invalid JSON body.";
+
+const nonEmptyStringSchema = z.string().refine(
+  (value) => value.trim().length > 0,
+);
+
+const submitCommandBodySchema = z.object({
+  rawText: nonEmptyStringSchema,
+});
+
+const renameDeviceBodySchema = z.object({
+  name: nonEmptyStringSchema,
+});
+
+type RequestBodyValidationResult<Body> =
+  | { kind: "ok"; body: Body }
+  | { kind: "error"; message: string };
+
+const parseAndValidateRequestBody = async <Body>(
+  request: IncomingMessage,
+  schema: z.ZodType<Body>,
+  invalidBodyMessage: string,
+): Promise<RequestBodyValidationResult<Body>> => {
+  let payload: unknown;
+
+  try {
+    const rawBody = await readRawRequestBody(request);
+    payload = JSON.parse(rawBody);
+  } catch {
+    return {
+      kind: "error",
+      message: INVALID_JSON_BODY_MESSAGE,
+    };
+  }
+
+  const parsedPayload = schema.safeParse(payload);
+  if (!parsedPayload.success) {
+    return {
+      kind: "error",
+      message: invalidBodyMessage,
+    };
+  }
+
+  return {
+    kind: "ok",
+    body: parsedPayload.data,
+  };
+};
 
 export interface CreateHttpRequestHandlersInput {
   deviceRepository: DeviceRepository;
@@ -168,22 +217,17 @@ export const createHttpRequestHandlers = (
     request: IncomingMessage,
     response: ServerResponse,
   ): Promise<void> => {
-    let payload: unknown;
-
-    try {
-      const rawBody = await readRawRequestBody(request);
-      payload = JSON.parse(rawBody);
-    } catch {
-      sendJson(response, 400, { message: "Invalid JSON body." });
+    const bodyResult = await parseAndValidateRequestBody(
+      request,
+      submitCommandBodySchema,
+      "rawText is required.",
+    );
+    if (bodyResult.kind === "error") {
+      sendJson(response, 400, { message: bodyResult.message });
       return;
     }
 
-    if (!isRecord(payload) || !isNonEmptyString(payload.rawText)) {
-      sendJson(response, 400, { message: "rawText is required." });
-      return;
-    }
-
-    const result = await submitCommandUseCase.execute(payload.rawText);
+    const result = await submitCommandUseCase.execute(bodyResult.body.rawText);
     if (result.kind === "error") {
       const httpError = mapSubmitCommandErrorToHttp(result.error.code);
       sendJson(response, httpError.statusCode, { message: httpError.message });
@@ -198,24 +242,19 @@ export const createHttpRequestHandlers = (
     response: ServerResponse,
     deviceId: string,
   ): Promise<void> => {
-    let payload: unknown;
-
-    try {
-      const rawBody = await readRawRequestBody(request);
-      payload = JSON.parse(rawBody);
-    } catch {
-      sendJson(response, 400, { message: "Invalid JSON body." });
-      return;
-    }
-
-    if (!isRecord(payload) || !isNonEmptyString(payload.name)) {
-      sendJson(response, 400, { message: "name is required." });
+    const bodyResult = await parseAndValidateRequestBody(
+      request,
+      renameDeviceBodySchema,
+      "name is required.",
+    );
+    if (bodyResult.kind === "error") {
+      sendJson(response, 400, { message: bodyResult.message });
       return;
     }
 
     const result = renameDeviceUseCase.execute({
       deviceId,
-      name: payload.name,
+      name: bodyResult.body.name,
     });
     if (result.kind === "error") {
       const httpError = mapRenameDeviceErrorToHttp(result.error.code);
