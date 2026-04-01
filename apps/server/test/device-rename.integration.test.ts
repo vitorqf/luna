@@ -95,6 +95,75 @@ describe("slice 23 - device rename", () => {
     }
   });
 
+  it("returns 400 when request body is invalid JSON", async () => {
+    const server = createLunaServer({ host: "127.0.0.1", port: 0 });
+    await server.start();
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:${server.getPort()}/devices/notebook-2`,
+        {
+          method: "PATCH",
+          headers: {
+            "content-type": "application/json"
+          },
+          body: "{"
+        }
+      );
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({
+        message: "Invalid JSON body."
+      });
+    } finally {
+      await server.stop();
+    }
+  });
+
+  it("returns 400 when name field is missing", async () => {
+    const server = createLunaServer({ host: "127.0.0.1", port: 0 });
+    await server.start();
+
+    let connection: { disconnect: () => Promise<void> } | undefined;
+
+    try {
+      connection = await connectAgent({
+        serverUrl: `ws://127.0.0.1:${server.getPort()}`,
+        device: {
+          id: "notebook-2",
+          name: "Notebook 2",
+          hostname: "notebook-2.local"
+        }
+      });
+
+      await waitForAssertion(() => {
+        expect(server.getRegisteredDevices()).toHaveLength(1);
+      });
+
+      const response = await fetch(
+        `http://127.0.0.1:${server.getPort()}/devices/notebook-2`,
+        {
+          method: "PATCH",
+          headers: {
+            "content-type": "application/json"
+          },
+          body: JSON.stringify({})
+        }
+      );
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({
+        message: "name is required."
+      });
+    } finally {
+      if (connection) {
+        await connection.disconnect();
+      }
+
+      await server.stop();
+    }
+  });
+
   it("returns 400 when alias is empty", async () => {
     const server = createLunaServer({ host: "127.0.0.1", port: 0 });
     await server.start();
