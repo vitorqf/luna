@@ -295,6 +295,30 @@ describe("slice 8 - command submit endpoint", () => {
     }
   });
 
+  it("returns 400 when rawText field is not a non-empty string", async () => {
+    const server = createLunaServer({ host: "127.0.0.1", port: 0 });
+    await server.start();
+
+    try {
+      const response = await fetch(`http://127.0.0.1:${server.getPort()}/commands`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          rawText: 10
+        })
+      });
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({
+        message: "rawText is required."
+      });
+    } finally {
+      await server.stop();
+    }
+  });
+
   it("returns 422 when raw command text is not supported by parser", async () => {
     const server = createLunaServer({ host: "127.0.0.1", port: 0 });
     await server.start();
