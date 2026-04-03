@@ -11,6 +11,9 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { dirname, extname, join, resolve } from "node:path";
+import { randomUUID } from "node:crypto";
+import { get as httpsGet } from "node:https";
+import { spawn } from "node:child_process";
 
 const SERVER_ARTIFACT_ENTRIES = [
   "apps/server",
@@ -39,6 +42,14 @@ export interface BuildArtifactOptions {
   embeddedWebDirPath?: string;
   runtimeExecutablePath?: string;
   targetPlatform?: NodeJS.Platform;
+  targetArchitecture?: NodeJS.Architecture;
+  runtimeNodeVersion?: string;
+  resolveAgentRuntimeExecutablePath?: ((input: {
+    projectRoot: string;
+    targetPlatform: NodeJS.Platform;
+    targetArchitecture: NodeJS.Architecture;
+    runtimeNodeVersion: string;
+  }) => Promise<string>) | undefined;
 }
 
 const EMBEDDED_WEB_ARTIFACT_DIR_NAME = "web";
@@ -47,12 +58,193 @@ const AGENT_RUNTIME_DIR_NAME = "runtime";
 const AGENT_RUNTIME_DEPENDENCIES = ["dotenv", "ws"] as const;
 const AGENT_WINDOWS_LAUNCHER_NAME = "run-agent.cmd";
 const AGENT_POSIX_LAUNCHER_NAME = "run-agent.sh";
+const PORTABLE_RUNTIME_CACHE_DIR_NAME = ".portable-runtime-cache";
 const AGENT_ENV_EXAMPLE_SOURCE = `# Luna Agent
 LUNA_AGENT_SERVER_URL=ws://127.0.0.1:4000
 LUNA_AGENT_DEVICE_ID=
 LUNA_AGENT_DEVICE_NAME=
 LUNA_AGENT_DEVICE_HOSTNAME=
 `;
+
+const mapLinuxRuntimeArchitecture = (
+  architecture: NodeJS.Architecture,
+): "x64" | "arm64" => {
+  if (architecture === "x64" || architecture === "arm64") {
+    return architecture;
+  }
+
+  throw new Error(
+    `Unsupported Linux architecture for portable runtime: ${architecture}`,
+  );
+};
+
+export const createPortableLinuxRuntimeArchiveUrl = (input: {
+  nodeVersion: string;
+  architecture: NodeJS.Architecture;
+}): string => {
+  const mappedArchitecture = mapLinuxRuntimeArchitecture(input.architecture);
+  const normalizedVersion = input.nodeVersion.trim();
+  if (!/^\d+\.\d+\.\d+$/.test(normalizedVersion)) {
+    throw new Error(
+      `Invalid Node version for portable runtime: ${input.nodeVersion}`,
+    );
+  }
+
+  return `https://nodejs.org/dist/v${normalizedVersion}/node-v${normalizedVersion}-linux-${mappedArchitecture}.tar.xz`;
+};
+
+const runCommand = async (
+  command: string,
+  args: string[],
+): Promise<void> =>
+  new Promise<void>((resolveCommand, rejectCommand) => {
+    const child = spawn(command, args, {
+      stdio: "ignore",
+    });
+
+    child.once("error", (error) => rejectCommand(error));
+    child.once("close", (code) => {
+      if (code !== 0) {
+        rejectCommand(
+          new Error(
+            `Command failed with code ${code}: ${command} ${args.join(" ")}`,
+          ),
+        );
+        return;
+      }
+
+      resolveCommand();
+    });
+  });
+
+const downloadFile = async (
+  url: string,
+  destinationPath: string,
+): Promise<void> =>
+  new Promise<void>((resolveDownload, rejectDownload) => {
+    const request = httpsGet(url, (response) => {
+      if (response.statusCode !== 200) {
+        rejectDownload(
+          new Error(
+            `Failed to download portable runtime (${response.statusCode}) from ${url}`,
+          ),
+        );
+        response.resume();
+        return;
+      }
+
+      if (!response.headers["content-length"]) {
+        // no-op: content length is optional, but response must still be consumed.
+      }
+
+      const chunks: Buffer[] = [];
+      response.on("data", (chunk: Buffer | string) => {
+        chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+      });
+      response.once("error", (error) => rejectDownload(error));
+      response.once("end", () => {
+        void writeFile(destinationPath, Buffer.concat(chunks))
+          .then(() => resolveDownload())
+          .catch((error) => rejectDownload(error));
+      });
+    });
+
+    request.once("error", (error) => rejectDownload(error));
+  });
+
+const resolvePortableLinuxRuntimeExecutablePath = async (input: {
+  projectRoot: string;
+  runtimeNodeVersion: string;
+  targetArchitecture: NodeJS.Architecture;
+}): Promise<string> => {
+  const runtimeArchiveUrl = createPortableLinuxRuntimeArchiveUrl({
+    nodeVersion: input.runtimeNodeVersion,
+    architecture: input.targetArchitecture,
+  });
+  const mappedArchitecture = mapLinuxRuntimeArchitecture(input.targetArchitecture);
+  const normalizedVersion = input.runtimeNodeVersion.trim();
+  const archiveFileName = `node-v${normalizedVersion}-linux-${mappedArchitecture}.tar.xz`;
+  const extractedDirName = `node-v${normalizedVersion}-linux-${mappedArchitecture}`;
+  const runtimeCacheRoot = join(
+    input.projectRoot,
+    PORTABLE_RUNTIME_CACHE_DIR_NAME,
+    extractedDirName,
+  );
+  const runtimeExecutablePath = join(runtimeCacheRoot, "bin", "node");
+
+  try {
+    await assertPathExists(runtimeExecutablePath, "Portable runtime executable");
+    return runtimeExecutablePath;
+  } catch {
+    // cache miss: continue and download/extract.
+  }
+
+  const downloadCacheRoot = join(input.projectRoot, PORTABLE_RUNTIME_CACHE_DIR_NAME);
+  const archivePath = join(downloadCacheRoot, archiveFileName);
+  const extractTempDir = join(downloadCacheRoot, `extract-${randomUUID()}`);
+
+  await mkdir(downloadCacheRoot, { recursive: true });
+
+  try {
+    await assertPathExists(archivePath, "Portable runtime archive");
+  } catch {
+    await downloadFile(runtimeArchiveUrl, archivePath);
+  }
+
+  await rm(runtimeCacheRoot, { recursive: true, force: true });
+  await rm(extractTempDir, { recursive: true, force: true });
+  await mkdir(extractTempDir, { recursive: true });
+
+  try {
+    await runCommand("tar", ["-xJf", archivePath, "-C", extractTempDir]);
+  } catch (error) {
+    const baseMessage =
+      error instanceof Error ? error.message : "Unknown tar extraction error.";
+    throw new Error(
+      `${baseMessage}. Ensure 'tar' with xz support is installed on the build machine.`,
+    );
+  }
+
+  const extractedRuntimeRoot = join(extractTempDir, extractedDirName);
+  await assertPathExists(extractedRuntimeRoot, "Extracted portable runtime root");
+  await cp(extractedRuntimeRoot, runtimeCacheRoot, { recursive: true });
+  await rm(extractTempDir, { recursive: true, force: true });
+
+  await assertPathExists(runtimeExecutablePath, "Portable runtime executable");
+  return runtimeExecutablePath;
+};
+
+const resolveAgentRuntimeExecutablePath = async (input: {
+  projectRoot: string;
+  targetPlatform: NodeJS.Platform;
+  targetArchitecture: NodeJS.Architecture;
+  runtimeNodeVersion: string;
+  runtimeExecutablePath: string | undefined;
+  resolveAgentRuntimeExecutablePath: BuildArtifactOptions["resolveAgentRuntimeExecutablePath"];
+}): Promise<string> => {
+  if (input.runtimeExecutablePath) {
+    return resolve(input.projectRoot, input.runtimeExecutablePath);
+  }
+
+  if (input.resolveAgentRuntimeExecutablePath) {
+    return input.resolveAgentRuntimeExecutablePath({
+      projectRoot: input.projectRoot,
+      targetPlatform: input.targetPlatform,
+      targetArchitecture: input.targetArchitecture,
+      runtimeNodeVersion: input.runtimeNodeVersion,
+    });
+  }
+
+  if (input.targetPlatform === "linux") {
+    return resolvePortableLinuxRuntimeExecutablePath({
+      projectRoot: input.projectRoot,
+      runtimeNodeVersion: input.runtimeNodeVersion,
+      targetArchitecture: input.targetArchitecture,
+    });
+  }
+
+  return process.execPath;
+};
 
 const assertPathExists = async (
   filePath: string,
@@ -155,11 +347,9 @@ export const createBuildArtifact = async (
   const artifactsDirName = options.artifactsDirName ?? "dist-artifacts";
   const embeddedWebDirPath =
     options.embeddedWebDirPath ?? join("apps", "web", "out");
-  const runtimeExecutablePath = resolve(
-    projectRoot,
-    options.runtimeExecutablePath ?? process.execPath,
-  );
   const targetPlatform = options.targetPlatform ?? process.platform;
+  const targetArchitecture = options.targetArchitecture ?? process.arch;
+  const runtimeNodeVersion = options.runtimeNodeVersion ?? process.versions.node;
   const sourceDistRoot = join(projectRoot, distDirName);
   const artifactRoot = join(projectRoot, artifactsDirName, target);
   const entries = ARTIFACT_ENTRIES[target];
@@ -190,6 +380,14 @@ export const createBuildArtifact = async (
   }
 
   if (target === "agent") {
+    const runtimeExecutablePath = await resolveAgentRuntimeExecutablePath({
+      projectRoot,
+      targetPlatform,
+      targetArchitecture,
+      runtimeNodeVersion,
+      runtimeExecutablePath: options.runtimeExecutablePath,
+      resolveAgentRuntimeExecutablePath: options.resolveAgentRuntimeExecutablePath,
+    });
     const runtimeTargetPath = join(
       artifactRoot,
       AGENT_RUNTIME_DIR_NAME,

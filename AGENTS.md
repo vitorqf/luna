@@ -570,6 +570,15 @@ Evitar:
 - testes de runtime do agent cobrem parse de CLI e conexao usando apenas argumentos de linha de comando
 - smoke test do pacote do agent valida conexao com runtime embutido usando argumentos CLI
 
+### Slice 48 - runtime portavel de Linux no artifact do agent (Concluido)
+
+- build do artifact do agent ganhou estrategia de runtime portavel para Linux baseada no Node oficial (`nodejs.org/dist`) em vez de reutilizar o `process.execPath` do builder
+- novo cache local `.portable-runtime-cache/` evita downloads repetidos do runtime em builds seguintes
+- URL do runtime Linux foi padronizada por helper dedicado com validacao explicita de arquitetura suportada (`x64` e `arm64`)
+- builder agora aceita resolver customizavel de runtime (`resolveAgentRuntimeExecutablePath`) para testes deterministicos sem rede
+- cobertura de testes ampliada em `build-artifacts.unit.test.ts` para URL de runtime portavel e para uso do resolver customizado
+- smoke test do artifact do agent foi ajustado para isolamento de artefato em pasta temporaria e validacao do runtime empacotado via CLI
+
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -678,11 +687,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 47 concluido em 2026-04-03.
+Slice 48 concluido em 2026-04-03.
 
 Proximo passo recomendado:
 
--> Slice 48 - a definir
+-> Slice 49 - a definir
 
 ## 19. Observa√ß√£o Final
 

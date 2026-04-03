@@ -168,6 +168,7 @@ describe("slice 38 - agent artifact smoke", () => {
         await createBuildArtifact("agent", {
           projectRoot: workspaceRoot,
           artifactsDirName: smokeArtifactsDirName,
+          runtimeExecutablePath: process.execPath,
         });
 
         await cp(smokeArtifactRoot, isolatedArtifactRoot, {

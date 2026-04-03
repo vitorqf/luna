@@ -10,7 +10,10 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createBuildArtifact } from "../src/build-artifacts";
+import {
+  createBuildArtifact,
+  createPortableLinuxRuntimeArchiveUrl,
+} from "../src/build-artifacts";
 
 const writeFixtureFile = async (
   filePath: string,
@@ -87,6 +90,26 @@ const seedRuntimeFixture = async (
 };
 
 describe("slice 25 - build artifacts", () => {
+  it("builds the official linux node runtime archive url for portable agent runtime", () => {
+    expect(
+      createPortableLinuxRuntimeArchiveUrl({
+        nodeVersion: "20.20.2",
+        architecture: "x64",
+      }),
+    ).toBe(
+      "https://nodejs.org/dist/v20.20.2/node-v20.20.2-linux-x64.tar.xz",
+    );
+  });
+
+  it("throws for unsupported architecture in portable linux runtime url", () => {
+    expect(() =>
+      createPortableLinuxRuntimeArchiveUrl({
+        nodeVersion: "20.20.2",
+        architecture: "ia32" as NodeJS.Architecture,
+      }),
+    ).toThrowError("Unsupported Linux architecture for portable runtime: ia32");
+  });
+
   it("creates server artifact without agent files", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "luna-artifact-server-"));
 
@@ -232,6 +255,33 @@ describe("slice 25 - build artifacts", () => {
       );
 
       expect(artifactEntrySource).toContain('import "./index.js";');
+    } finally {
+      await rm(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("uses runtime resolver callback when building agent artifact without explicit runtime path", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "luna-artifact-agent-runtime-resolver-"));
+
+    try {
+      await seedDistFixtures(projectRoot);
+      await seedExternalRuntimeDependencyFixtures(projectRoot);
+      const runtimeExecutablePath = await seedRuntimeFixture(projectRoot, "node");
+      let resolverCallCount = 0;
+
+      const artifactRoot = await createBuildArtifact("agent", {
+        projectRoot,
+        targetPlatform: "linux",
+        resolveAgentRuntimeExecutablePath: async () => {
+          resolverCallCount += 1;
+          return runtimeExecutablePath;
+        },
+      });
+
+      expect(resolverCallCount).toBe(1);
+      await expect(
+        pathExists(join(artifactRoot, "runtime/node")),
+      ).resolves.toBe(true);
     } finally {
       await rm(projectRoot, { recursive: true, force: true });
     }
