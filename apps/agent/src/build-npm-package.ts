@@ -6,6 +6,7 @@ import { readVersionFromPackageJsonSource } from "./agent-package-version";
 const DEFAULT_OUTPUT_DIR = join("dist-packages", "agent-cli");
 const DEFAULT_PACKAGE_NAME = "@vitorqf/luna-agent";
 const DEFAULT_CLI_COMMAND_NAME = "luna-agent";
+const DEFAULT_REPOSITORY_URL = "git+https://github.com/vitorqf/luna.git";
 
 export interface BundleCliEntryInput {
   entryFilePath: string;
@@ -113,6 +114,10 @@ export const buildAgentNpmPackage = async (
         version: packageVersion,
         type: "commonjs",
         private: false,
+        repository: {
+          type: "git",
+          url: DEFAULT_REPOSITORY_URL,
+        },
         bin: {
           [cliCommandName]: `bin/${cliCommandName}.js`,
         },

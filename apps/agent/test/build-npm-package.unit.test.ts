@@ -71,6 +71,10 @@ describe("slice 49 - agent npm cli package", () => {
         version: "1.2.3",
         type: "commonjs",
         private: false,
+        repository: {
+          type: "git",
+          url: "git+https://github.com/vitorqf/luna.git",
+        },
         bin: {
           "acme-agent": "bin/acme-agent.js",
         },
@@ -124,6 +128,10 @@ describe("slice 49 - agent npm cli package", () => {
         version: "7.8.9",
         type: "commonjs",
         private: false,
+        repository: {
+          type: "git",
+          url: "git+https://github.com/vitorqf/luna.git",
+        },
         bin: {
           "luna-agent": "bin/luna-agent.js",
         },
