@@ -58,6 +58,9 @@ describe("slice 49 - agent npm cli package", () => {
       await expect(
         readFile(join(outputRoot, "bin/acme-agent.js"), "utf-8"),
       ).resolves.toBe(bundledSource);
+      await expect(
+        readFile(join(outputRoot, "README.md"), "utf-8"),
+      ).resolves.toContain("acme-agent");
 
       const packageJsonSource = await readFile(
         join(outputRoot, "package.json"),
@@ -71,7 +74,7 @@ describe("slice 49 - agent npm cli package", () => {
         bin: {
           "acme-agent": "bin/acme-agent.js",
         },
-        files: ["bin"],
+        files: ["bin", "README.md"],
         engines: {
           node: ">=20",
         },
@@ -101,6 +104,9 @@ describe("slice 49 - agent npm cli package", () => {
         join(outputRoot, "package.json"),
         "utf-8",
       );
+      await expect(
+        readFile(join(outputRoot, "README.md"), "utf-8"),
+      ).resolves.toContain("luna-agent");
       expect(JSON.parse(packageJsonSource)).toEqual({
         name: "@vitorqf/luna-agent",
         version: "0.0.0",
@@ -109,7 +115,7 @@ describe("slice 49 - agent npm cli package", () => {
         bin: {
           "luna-agent": "bin/luna-agent.js",
         },
-        files: ["bin"],
+        files: ["bin", "README.md"],
         engines: {
           node: ">=20",
         },

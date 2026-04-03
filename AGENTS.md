@@ -595,6 +595,14 @@ Evitar:
 - comandos de build de artefato permanecem documentados apenas para contexto de desenvolvimento/manutencao do monorepo
 - validacao manual dos comandos documentados foi realizada durante o ajuste de documentacao
 
+### Slice 51 - readme no pacote npm publicado do agent (Concluido)
+
+- builder do pacote npm do agent passou a gerar README.md automaticamente dentro de dist-packages/agent-cli
+- package.json gerado passou a incluir README.md na lista files para empacotamento explicito
+- README do pacote documenta execucao via npm exec e as flags CLI suportadas
+- testes unitarios do builder foram ampliados para validar existencia/conteudo do README e metadata atualizada de files
+- validacao via npm pack confirmou README.md presente no tarball publicado
+
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -703,11 +711,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 50 concluido em 2026-04-03.
+Slice 51 concluido em 2026-04-03.
 
 Proximo passo recomendado:
 
--> Slice 51 - a definir
+-> Slice 52 - a definir
 
 ## 19. Observa√ß√£o Final
 
