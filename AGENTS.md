@@ -613,6 +613,13 @@ Evitar:
 - testes de integracao do runtime cobrem boot sem server com recuperacao posterior, reconexao apos restart do server e parada do loop de retry apos disconnect programatico
 - runtime de stop do server passou a terminar clientes WebSocket ativos antes do close para permitir restart deterministico durante os testes de reconexao
 - documentacao atualizada em .env.example, README.md e RUN_LOCAL.md
+
+### Slice 53 - catalogo compartilhado canonico de contratos (Concluido)
+
+- `@luna/shared-types` passou a exportar catalogos runtime canonicos para device status, capabilities, command status, failure reasons e intents
+- novos helpers puros adicionados em `shared-types`: `isDeviceStatus`, `isDeviceCapability`, `isCommandStatus`, `isCommandFailureReason` e `isCommandIntent`
+- `packages/command-parser` passou a reexportar os intent constants a partir de `@luna/shared-types`, preservando o contrato publico do parser
+- testes adicionados/atualizados em `shared-types`, `command-parser` e `protocol`; regressao dos packages validada verde
 ## 11. Critérios de Conclusão por Slice
 
 Cada slice deve:
@@ -721,11 +728,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 52 concluido em 2026-04-03.
+Slice 53 concluido em 2026-04-03.
 
 Proximo passo recomendado:
 
--> Slice 53 - catalogo compartilhado canonico de contratos
+-> Slice 54 - alinhamento de contratos no web/protocol/server/agent
 
 ### Findings de refactor atuais (2026-04-03)
 
@@ -780,7 +787,7 @@ Proximo passo recomendado:
 
 ### Slices de refactor propostos
 
-### Slice 53 - catalogo compartilhado canonico de contratos
+### Slice 53 - catalogo compartilhado canonico de contratos (Concluido)
 
 - mover capabilities, reasons e helpers de validacao reutilizaveis para `@luna/shared-types`
 - reduzir duplicacao de unions/string literals entre packages e apps

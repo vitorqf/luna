@@ -1,7 +1,15 @@
-export const OPEN_APP_INTENT = "open_app" as const;
-export const NOTIFY_INTENT = "notify" as const;
-export const SET_VOLUME_INTENT = "set_volume" as const;
-export const PLAY_MEDIA_INTENT = "play_media" as const;
+export {
+  NOTIFY_INTENT,
+  OPEN_APP_INTENT,
+  PLAY_MEDIA_INTENT,
+  SET_VOLUME_INTENT,
+} from "@luna/shared-types";
+import {
+  NOTIFY_INTENT,
+  OPEN_APP_INTENT,
+  PLAY_MEDIA_INTENT,
+  SET_VOLUME_INTENT,
+} from "@luna/shared-types";
 
 export interface OpenAppCommand {
   intent: typeof OPEN_APP_INTENT;

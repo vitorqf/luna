@@ -2,5 +2,8 @@
   "name": "@luna/command-parser",
   "version": "0.0.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@luna/shared-types": "0.0.0"
+  }
 }
