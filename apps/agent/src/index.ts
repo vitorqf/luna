@@ -4,7 +4,10 @@ import {
   createCommandAckMessage,
   parseCommandDispatchMessage
 } from "@luna/protocol";
-import type { DeviceCapability } from "@luna/shared-types";
+import {
+  DEVICE_CAPABILITIES,
+  type DeviceCapability,
+} from "@luna/shared-types";
 import { createDiscoveryAnnouncer } from "./discovery-announcer";
 import { dispatchIntentExecution } from "./intent-dispatcher";
 import { createNotifyLauncher } from "./notify-launcher";
@@ -15,12 +18,7 @@ import { WebSocket } from "ws";
 
 export const agentBootstrapReady = true;
 
-export const SUPPORTED_CAPABILITIES: readonly DeviceCapability[] = [
-  "notify",
-  "open_app",
-  "set_volume",
-  "play_media"
-];
+export const SUPPORTED_CAPABILITIES = DEVICE_CAPABILITIES;
 
 export interface AgentIdentity {
   id: string;

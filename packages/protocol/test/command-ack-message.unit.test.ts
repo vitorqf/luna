@@ -54,4 +54,17 @@ describe("command ack message", () => {
 
     expect(parseCommandAckMessage(serialized)).toBeNull();
   });
+
+  it("rejects failed ack payload with non-canonical reason", () => {
+    const serialized = JSON.stringify({
+      type: "command.ack",
+      payload: {
+        commandId: "cmd-4",
+        status: "failed",
+        reason: "timeout"
+      }
+    });
+
+    expect(parseCommandAckMessage(serialized)).toBeNull();
+  });
 });

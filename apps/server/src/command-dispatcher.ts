@@ -1,7 +1,11 @@
 import {
+  COMMAND_ACK_REASON_UNSUPPORTED_INTENT,
+  COMMAND_ACK_STATUS_FAILED,
+  COMMAND_ACK_STATUS_SUCCESS,
   createCommandDispatchMessage,
-  type CommandAckPayload,
 } from "@luna/protocol";
+import type { CommandFailureReason } from "@luna/shared-types";
+import type { CommandAckPayload } from "@luna/protocol";
 import { WebSocket } from "ws";
 import type {
   CommandHistoryRepository,
@@ -19,12 +23,18 @@ export interface DispatchCommandInput {
   ackTimeoutMs?: number;
 }
 
-export interface DispatchCommandAcknowledgement {
-  commandId: string;
-  targetDeviceId: string;
-  status: CommandAckPayload["status"];
-  reason?: string;
-}
+export type DispatchCommandAcknowledgement =
+  | {
+      commandId: string;
+      targetDeviceId: string;
+      status: typeof COMMAND_ACK_STATUS_SUCCESS;
+    }
+  | {
+      commandId: string;
+      targetDeviceId: string;
+      status: typeof COMMAND_ACK_STATUS_FAILED;
+      reason: CommandFailureReason;
+    };
 
 export interface PendingCommandAck {
   rawText: string;
@@ -75,10 +85,8 @@ export const settlePendingCommandAck = (input: {
     });
     input.persistState?.();
     pendingAck.resolve({
-      commandId: input.commandAckPayload.commandId,
       targetDeviceId: pendingAck.targetDeviceId,
-      status: "failed",
-      reason: input.commandAckPayload.reason,
+      ...input.commandAckPayload,
     });
     return true;
   }
@@ -93,9 +101,8 @@ export const settlePendingCommandAck = (input: {
   });
   input.persistState?.();
   pendingAck.resolve({
-    commandId: input.commandAckPayload.commandId,
     targetDeviceId: pendingAck.targetDeviceId,
-    status: "success",
+    ...input.commandAckPayload,
   });
   return true;
 };
@@ -131,16 +138,16 @@ export const createCommandDispatcher = (
         intent: dispatchInput.intent,
         targetDeviceId: dispatchInput.targetDeviceId,
         params: dispatchInput.params,
-        status: "failed",
-        reason: "unsupported_intent",
+        status: COMMAND_ACK_STATUS_FAILED,
+        reason: COMMAND_ACK_REASON_UNSUPPORTED_INTENT,
       });
       persistState?.();
 
       return {
         commandId,
         targetDeviceId: dispatchInput.targetDeviceId,
-        status: "failed",
-        reason: "unsupported_intent",
+        status: COMMAND_ACK_STATUS_FAILED,
+        reason: COMMAND_ACK_REASON_UNSUPPORTED_INTENT,
       };
     }
 

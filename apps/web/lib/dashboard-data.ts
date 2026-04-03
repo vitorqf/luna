@@ -1,7 +1,12 @@
-import type { Command as ServerCommand, Device as ServerDevice } from "@luna/shared-types";
+import type {
+  Command as ServerCommand,
+  CommandFailureReason,
+  Device as ServerDevice,
+} from "@luna/shared-types";
+import { isCommandFailureReason } from "@luna/shared-types";
 import type { CommandResult, Device, SystemStats } from "./types";
 
-const reasonMessageByCode: Record<string, string> = {
+const reasonMessageByCode: Record<CommandFailureReason, string> = {
   invalid_params: "Parâmetros inválidos para executar o comando.",
   unsupported_intent: "Esse dispositivo não suporta este comando.",
   execution_error: "Falha ao executar no dispositivo."
@@ -14,7 +19,7 @@ const mapFailureReasonToMessage = (
     return "Falha na execução.";
   }
 
-  return reasonMessageByCode[reason] ?? reason;
+  return isCommandFailureReason(reason) ? reasonMessageByCode[reason] : reason;
 };
 
 const inferDeviceType = (device: ServerDevice): Device["type"] => {

@@ -44,8 +44,6 @@ function CapabilityBadge({ capability }: { capability: DeviceCapability }) {
     open_app: "Apps",
     set_volume: "Volume",
     play_media: "Media",
-    screenshot: "Screenshot",
-    shutdown: "Power",
   };
 
   return (

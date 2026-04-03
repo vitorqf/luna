@@ -1,11 +1,22 @@
-import type { Command, Device, DiscoveredAgent } from "@luna/shared-types";
+import type {
+  Command,
+  CommandFailureReason,
+  Device,
+  DiscoveredAgent,
+} from "@luna/shared-types";
 
-export interface SubmitCommandAck {
-  commandId: string;
-  targetDeviceId: string;
-  status: "success" | "failed";
-  reason?: string;
-}
+export type SubmitCommandAck =
+  | {
+      commandId: string;
+      targetDeviceId: string;
+      status: "success";
+    }
+  | {
+      commandId: string;
+      targetDeviceId: string;
+      status: "failed";
+      reason: CommandFailureReason;
+    };
 
 const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, "");
 

@@ -1,5 +1,6 @@
+import type { CommandFailureReason } from "@luna/shared-types";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createLunaApiClient } from "./luna-api";
+import { createLunaApiClient, type SubmitCommandAck } from "./luna-api";
 
 const makeJsonResponse = (payload: unknown, status = 200): Response =>
   new Response(JSON.stringify(payload), {
@@ -13,6 +14,49 @@ describe("luna api client", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it("uses the canonical submit acknowledgement union", () => {
+    const successAck: SubmitCommandAck = {
+      commandId: "cmd-1",
+      targetDeviceId: "notebook-2",
+      status: "success",
+    };
+    const failedAck: SubmitCommandAck = {
+      commandId: "cmd-2",
+      targetDeviceId: "notebook-2",
+      status: "failed",
+      reason: "execution_error" satisfies CommandFailureReason,
+    };
+
+    const invalidSuccessAck: SubmitCommandAck = {
+      commandId: "cmd-3",
+      targetDeviceId: "notebook-2",
+      status: "success",
+      // @ts-expect-error success acknowledgements must not include a failure reason
+      reason: "execution_error",
+    };
+
+    // @ts-expect-error failed acknowledgements must include a canonical reason
+    const invalidFailedAck: SubmitCommandAck = {
+      commandId: "cmd-4",
+      targetDeviceId: "notebook-2",
+      status: "failed",
+    };
+
+    const invalidFailedReasonAck: SubmitCommandAck = {
+      commandId: "cmd-5",
+      targetDeviceId: "notebook-2",
+      status: "failed",
+      // @ts-expect-error failed acknowledgements reject non-canonical reasons
+      reason: "timeout",
+    };
+
+    void successAck;
+    void failedAck;
+    void invalidSuccessAck;
+    void invalidFailedAck;
+    void invalidFailedReasonAck;
   });
 
   it("fetches devices from GET /devices", async () => {

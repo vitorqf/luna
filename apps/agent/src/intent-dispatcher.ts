@@ -3,13 +3,11 @@ import {
   COMMAND_ACK_STATUS_SUCCESS,
   type CommandAckPayload
 } from "@luna/protocol";
-
-type CanonicalFailureReason =
-  | "invalid_params"
-  | "unsupported_intent"
-  | "execution_error";
-
-type SupportedIntent = "notify" | "open_app" | "set_volume" | "play_media";
+import {
+  COMMAND_INTENTS,
+  isCommandIntent,
+  type CommandFailureReason,
+} from "@luna/shared-types";
 
 interface LocalNotification {
   title: string;
@@ -37,6 +35,9 @@ interface IntentStrategy {
   execute: (input: IntentStrategyInput) => Promise<CommandAckPayload>;
 }
 
+const SUPPORTED_INTENTS = COMMAND_INTENTS;
+
+type SupportedIntent = (typeof SUPPORTED_INTENTS)[number];
 type IntentStrategyMap = Record<SupportedIntent, IntentStrategy>;
 
 export interface IntentDispatcherExecutors {
@@ -61,15 +62,8 @@ export interface DispatchIntentExecutionInput {
   executors: IntentDispatcherExecutors;
 }
 
-const SUPPORTED_INTENTS: readonly SupportedIntent[] = [
-  "notify",
-  "open_app",
-  "set_volume",
-  "play_media"
-];
-
 const isSupportedIntent = (value: string): value is SupportedIntent =>
-  SUPPORTED_INTENTS.includes(value as SupportedIntent);
+  isCommandIntent(value);
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
@@ -140,7 +134,7 @@ const createSuccessAckPayload = (commandId: string): CommandAckPayload => ({
 
 const createFailedAckPayload = (
   commandId: string,
-  reason: CanonicalFailureReason
+  reason: CommandFailureReason
 ): CommandAckPayload => ({
   commandId,
   status: COMMAND_ACK_STATUS_FAILED,

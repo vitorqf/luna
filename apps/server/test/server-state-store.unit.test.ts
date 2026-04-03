@@ -59,6 +59,74 @@ describe("slice 37 - server state store", () => {
     }
   });
 
+  it("fails when a persisted device status is outside the canonical shared catalog", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "luna-server-state-"));
+    const stateFile = join(tempDir, "server-state.json");
+
+    try {
+      await writeFile(
+        stateFile,
+        JSON.stringify({
+          version: 1,
+          devices: [
+            {
+              id: "notebook-2",
+              name: "Notebook 2",
+              hostname: "notebook-2.local",
+              status: "pending",
+              capabilities: ["notify"],
+            },
+          ],
+          customDeviceAliases: {},
+          commandHistory: [],
+        }),
+        "utf-8",
+      );
+
+      expect(() => loadPersistedServerState(stateFile)).toThrowError(
+        "Server state file has an invalid schema.",
+      );
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("fails when a persisted command reason is outside the canonical shared catalog", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "luna-server-state-"));
+    const stateFile = join(tempDir, "server-state.json");
+
+    try {
+      await writeFile(
+        stateFile,
+        JSON.stringify({
+          version: 1,
+          devices: [],
+          customDeviceAliases: {},
+          commandHistory: [
+            {
+              id: "command-1",
+              rawText: "Abrir Spotify no Notebook 2",
+              intent: "open_app",
+              targetDeviceId: "notebook-2",
+              params: {
+                appName: "Spotify",
+              },
+              status: "failed",
+              reason: "timeout",
+            },
+          ],
+        }),
+        "utf-8",
+      );
+
+      expect(() => loadPersistedServerState(stateFile)).toThrowError(
+        "Server state file has an invalid schema.",
+      );
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("writes the snapshot atomically and creates the parent directory", async () => {
     const tempDir = await mkdtemp(join(tmpdir(), "luna-server-state-"));
     const stateDir = join(tempDir, "nested", "state");

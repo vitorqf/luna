@@ -16,7 +16,7 @@ export const mockDevices: Device[] = [
     hostname: "desktop-sala.local",
     type: "desktop",
     status: "offline",
-    capabilities: ["notify", "open_app", "set_volume", "screenshot", "shutdown"],
+    capabilities: ["notify", "open_app", "set_volume"],
     lastSeen: "2 hours ago",
   },
   {
@@ -25,7 +25,7 @@ export const mockDevices: Device[] = [
     hostname: "mini-pc-homelab.local",
     type: "mini_pc",
     status: "online",
-    capabilities: ["notify", "shutdown"],
+    capabilities: ["notify", "play_media"],
     lastSeen: "now",
   },
   {
@@ -34,7 +34,7 @@ export const mockDevices: Device[] = [
     hostname: "server-principal.local",
     type: "server",
     status: "online",
-    capabilities: ["notify", "shutdown"],
+    capabilities: ["notify", "open_app"],
     lastSeen: "now",
   },
 ];
@@ -78,11 +78,11 @@ export const mockCommandHistory: CommandResult[] = [
   },
   {
     id: "cmd-005",
-    command: "Restart Mini PC Homelab",
+    command: 'Tocar "focus mix" no Mini PC Homelab',
     targetDevice: "Mini PC Homelab",
     targetDeviceId: "dev-003",
     status: "success",
-    message: "Restart initiated",
+    message: "Playing focus mix",
     timestamp: "1 hour ago",
   },
 ];
@@ -99,6 +99,6 @@ export const commandPlaceholders = [
   'Tocar "lo-fi" no Notebook 2',
   "Definir volume para 50% no Notebook 2",
   'Notificar "Backup concluido" no Mini PC Homelab',
-  "Desligue o Desktop Sala",
+  "Abra o VSCode no Desktop Sala",
 ];
 

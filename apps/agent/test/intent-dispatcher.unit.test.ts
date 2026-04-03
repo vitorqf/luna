@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { DEVICE_CAPABILITIES } from "@luna/shared-types";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
+import { SUPPORTED_CAPABILITIES } from "../src/index";
 import { dispatchIntentExecution } from "../src/intent-dispatcher";
 
 const createExecutors = () => ({
@@ -9,6 +11,11 @@ const createExecutors = () => ({
 });
 
 describe("slice 39 - intent dispatcher", () => {
+  it("reuses the shared capability catalog for agent registration defaults", () => {
+    expect(SUPPORTED_CAPABILITIES).toBe(DEVICE_CAPABILITIES);
+    expectTypeOf(SUPPORTED_CAPABILITIES).toEqualTypeOf<typeof DEVICE_CAPABILITIES>();
+  });
+
   it("returns success and executes notify strategy when params are valid", async () => {
     const executors = createExecutors();
 

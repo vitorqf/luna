@@ -1,4 +1,11 @@
-import type { DeviceCapability } from "@luna/shared-types";
+import {
+  COMMAND_FAILURE_REASONS,
+  COMMAND_STATUSES,
+  isCommandFailureReason,
+  isDeviceCapability,
+  type CommandFailureReason,
+  type DeviceCapability,
+} from "@luna/shared-types";
 
 export const protocolBootstrapReady = true;
 
@@ -8,24 +15,14 @@ export const AGENT_DISCOVERY_ANNOUNCE_MESSAGE_TYPE =
   "agent.discovery.announce" as const;
 export const COMMAND_DISPATCH_MESSAGE_TYPE = "command.dispatch" as const;
 export const COMMAND_ACK_MESSAGE_TYPE = "command.ack" as const;
-export const COMMAND_ACK_STATUS_SUCCESS = "success" as const;
-export const COMMAND_ACK_STATUS_FAILED = "failed" as const;
-export const COMMAND_ACK_REASON_INVALID_PARAMS = "invalid_params" as const;
+export const COMMAND_ACK_STATUS_SUCCESS = COMMAND_STATUSES[0];
+export const COMMAND_ACK_STATUS_FAILED = COMMAND_STATUSES[1];
+export const COMMAND_ACK_REASON_INVALID_PARAMS = COMMAND_FAILURE_REASONS[0];
 export const COMMAND_ACK_REASON_UNSUPPORTED_INTENT =
-  "unsupported_intent" as const;
-export const COMMAND_ACK_REASON_EXECUTION_ERROR = "execution_error" as const;
+  COMMAND_FAILURE_REASONS[1];
+export const COMMAND_ACK_REASON_EXECUTION_ERROR = COMMAND_FAILURE_REASONS[2];
 
-export type CommandAckFailureReason =
-  | typeof COMMAND_ACK_REASON_INVALID_PARAMS
-  | typeof COMMAND_ACK_REASON_UNSUPPORTED_INTENT
-  | typeof COMMAND_ACK_REASON_EXECUTION_ERROR;
-
-const CANONICAL_DEVICE_CAPABILITIES: readonly DeviceCapability[] = [
-  "notify",
-  "open_app",
-  "set_volume",
-  "play_media",
-];
+export type CommandAckFailureReason = CommandFailureReason;
 
 export interface AgentRegisterPayload {
   id: string;
@@ -91,10 +88,6 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
-
-const isDeviceCapability = (value: unknown): value is DeviceCapability =>
-  typeof value === "string" &&
-  (CANONICAL_DEVICE_CAPABILITIES as readonly string[]).includes(value);
 
 export const createAgentRegisterMessage = (
   payload: AgentRegisterPayload
@@ -240,11 +233,7 @@ export const isCommandAckMessage = (value: unknown): value is CommandAckMessage 
   }
 
   if (value.payload.status === COMMAND_ACK_STATUS_FAILED) {
-    return (
-      value.payload.reason === COMMAND_ACK_REASON_INVALID_PARAMS ||
-      value.payload.reason === COMMAND_ACK_REASON_UNSUPPORTED_INTENT ||
-      value.payload.reason === COMMAND_ACK_REASON_EXECUTION_ERROR
-    );
+    return isCommandFailureReason(value.payload.reason);
   }
 
   return false;

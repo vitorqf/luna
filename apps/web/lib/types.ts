@@ -1,8 +1,13 @@
-export type DeviceStatus = "online" | "offline";
+import type {
+  DeviceCapability as SharedDeviceCapability,
+  DeviceStatus as SharedDeviceStatus,
+} from "@luna/shared-types";
+
+export type DeviceStatus = SharedDeviceStatus;
 
 export type CommandStatus = "success" | "pending" | "error";
 
-export type DeviceCapability = "notify" | "open_app" | "set_volume" | "play_media" | "screenshot" | "shutdown";
+export type DeviceCapability = SharedDeviceCapability;
 
 export interface Device {
   id: string;

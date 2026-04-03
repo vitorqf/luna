@@ -1,4 +1,11 @@
-import type { Command, Device, DeviceCapability } from "@luna/shared-types";
+import {
+  isCommandFailureReason,
+  isCommandStatus,
+  isDeviceCapability,
+  isDeviceStatus,
+  type Command,
+  type Device,
+} from "@luna/shared-types";
 import {
   existsSync,
   mkdirSync,
@@ -11,19 +18,6 @@ import { dirname } from "node:path";
 import { isRecord } from "./utils/value";
 
 const PERSISTED_SERVER_STATE_VERSION = 1 as const;
-
-const DEVICE_CAPABILITIES: readonly DeviceCapability[] = [
-  "notify",
-  "open_app",
-  "set_volume",
-  "play_media",
-];
-
-const COMMAND_FAILURE_REASONS = [
-  "invalid_params",
-  "unsupported_intent",
-  "execution_error",
-] as const;
 
 export interface PersistedServerState {
   devices: Device[];
@@ -44,10 +38,6 @@ const EMPTY_PERSISTED_SERVER_STATE: PersistedServerState = {
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
   isRecord(value) && !Array.isArray(value);
 
-const isDeviceCapability = (value: unknown): value is DeviceCapability =>
-  typeof value === "string" &&
-  DEVICE_CAPABILITIES.some((capability) => capability === value);
-
 const isDevice = (value: unknown): value is Device => {
   if (!isObjectRecord(value)) {
     return false;
@@ -57,7 +47,7 @@ const isDevice = (value: unknown): value is Device => {
     typeof value.id === "string" &&
     typeof value.name === "string" &&
     typeof value.hostname === "string" &&
-    (value.status === "online" || value.status === "offline") &&
+    isDeviceStatus(value.status) &&
     Array.isArray(value.capabilities) &&
     value.capabilities.every(isDeviceCapability)
   );
@@ -78,15 +68,15 @@ const isCommand = (value: unknown): value is Command => {
     return false;
   }
 
+  if (!isCommandStatus(value.status)) {
+    return false;
+  }
+
   if (value.status === "success") {
     return true;
   }
 
-  return (
-    value.status === "failed" &&
-    typeof value.reason === "string" &&
-    COMMAND_FAILURE_REASONS.some((reason) => reason === value.reason)
-  );
+  return isCommandFailureReason(value.reason);
 };
 
 const isPersistedServerState = (

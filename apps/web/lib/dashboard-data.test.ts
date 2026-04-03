@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { Command, Device as ServerDevice } from "@luna/shared-types";
 import { buildStats, mapCommandsToUi, mapDevicesToUi } from "./dashboard-data";
 
+const asMalformedCommand = (command: unknown): Command => command as Command;
+
 describe("dashboard data mapping", () => {
   it("maps server devices to ui devices with payload capabilities", () => {
     const devices: ServerDevice[] = [
@@ -164,7 +166,7 @@ describe("dashboard data mapping", () => {
 
   it("falls back to raw reason when unknown, or default when missing", () => {
     const commands: Command[] = [
-      {
+      asMalformedCommand({
         id: "cmd-5",
         rawText: "Abrir Spotify no Notebook 2",
         intent: "open_app",
@@ -174,8 +176,8 @@ describe("dashboard data mapping", () => {
         },
         status: "failed",
         reason: "custom_reason"
-      },
-      {
+      }),
+      asMalformedCommand({
         id: "cmd-6",
         rawText: "Abrir Spotify no Notebook 2",
         intent: "open_app",
@@ -184,7 +186,7 @@ describe("dashboard data mapping", () => {
           appName: "Spotify"
         },
         status: "failed"
-      }
+      })
     ];
 
     const uiDevices = [
