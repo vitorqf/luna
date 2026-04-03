@@ -255,6 +255,7 @@ Test strategy:
 
 - Follow `AGENTS.md` project rules (TDD-first, one slice at a time, minimal increments).
 - Keep changes small, tested, and behavior-focused.
+- Agent package version is bumped automatically on `main` when files under `apps/agent/**` change.
 - Use Conventional Commits, for example:
 
 ```text

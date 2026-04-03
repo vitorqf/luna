@@ -1,10 +1,10 @@
-﻿import { chmod, mkdir, rm, writeFile } from "node:fs/promises";
+﻿import { chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { build as buildWithEsbuild } from "esbuild";
+import { readVersionFromPackageJsonSource } from "./agent-package-version";
 
 const DEFAULT_OUTPUT_DIR = join("dist-packages", "agent-cli");
 const DEFAULT_PACKAGE_NAME = "@vitorqf/luna-agent";
-const DEFAULT_PACKAGE_VERSION = "0.0.1";
 const DEFAULT_CLI_COMMAND_NAME = "luna-agent";
 
 export interface BundleCliEntryInput {
@@ -65,6 +65,14 @@ npm exec --yes --package ${packageName} ${cliCommandName} -- \\
 `;
 };
 
+const readDefaultAgentPackageVersion = async (
+  projectRoot: string,
+): Promise<string> => {
+  const packageJsonPath = join(projectRoot, "apps", "agent", "package.json");
+  const packageJsonSource = await readFile(packageJsonPath, "utf-8");
+  return readVersionFromPackageJsonSource(packageJsonSource);
+};
+
 export const buildAgentNpmPackage = async (
   options: BuildAgentNpmPackageOptions = {},
 ): Promise<string> => {
@@ -74,7 +82,8 @@ export const buildAgentNpmPackage = async (
     options.outputDirName ?? DEFAULT_OUTPUT_DIR,
   );
   const packageName = options.packageName ?? DEFAULT_PACKAGE_NAME;
-  const packageVersion = options.packageVersion ?? DEFAULT_PACKAGE_VERSION;
+  const packageVersion =
+    options.packageVersion ?? (await readDefaultAgentPackageVersion(projectRoot));
   const cliCommandName = options.cliCommandName ?? DEFAULT_CLI_COMMAND_NAME;
   const bundleCliEntry = options.bundleCliEntry ?? defaultBundleCliEntry;
   const entryFilePath = join(

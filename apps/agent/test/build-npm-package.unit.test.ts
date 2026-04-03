@@ -92,6 +92,18 @@ describe("slice 49 - agent npm cli package", () => {
         join(projectRoot, "apps/agent/src/main.ts"),
         "console.log('source')\n",
       );
+      await writeFixtureFile(
+        join(projectRoot, "apps/agent/package.json"),
+        `${JSON.stringify(
+          {
+            name: "@luna/agent",
+            version: "7.8.9",
+            private: true,
+          },
+          null,
+          2,
+        )}\n`,
+      );
 
       const outputRoot = await buildAgentNpmPackage({
         projectRoot,
@@ -109,7 +121,7 @@ describe("slice 49 - agent npm cli package", () => {
       ).resolves.toContain("luna-agent");
       expect(JSON.parse(packageJsonSource)).toEqual({
         name: "@vitorqf/luna-agent",
-        version: "0.0.0",
+        version: "7.8.9",
         type: "commonjs",
         private: false,
         bin: {
