@@ -1,20 +1,16 @@
 import {
-  createAgentHeartbeatMessage,
-  createAgentRegisterMessage,
-  createCommandAckMessage,
-  parseCommandDispatchMessage
+  createAgentHeartbeatMessage
 } from "@luna/protocol";
 import {
   DEVICE_CAPABILITIES,
   type DeviceCapability,
 } from "@luna/shared-types";
+import { createAgentSession } from "./agent-session";
 import { createDiscoveryAnnouncer } from "./discovery-announcer";
-import { dispatchIntentExecution } from "./intent-dispatcher";
 import { createNotifyLauncher } from "./notify-launcher";
 import { createOpenAppLauncher } from "./open-app-launcher";
 import { createPlayMediaLauncher } from "./play-media-launcher";
 import { createSetVolumeLauncher } from "./set-volume-launcher";
-import { WebSocket } from "ws";
 
 export const agentBootstrapReady = true;
 
@@ -108,7 +104,6 @@ const getErrorReason = (error: unknown): string => {
 export const connectAgent = async (
   input: ConnectAgentInput
 ): Promise<AgentConnection> => {
-  const socket = new WebSocket(input.serverUrl);
   const registerCapabilities =
     input.device.capabilities ?? SUPPORTED_CAPABILITIES;
   const heartbeatIntervalMs = input.heartbeatIntervalMs ?? 5_000;
@@ -123,86 +118,22 @@ export const connectAgent = async (
         stop: () => void;
       }
     | undefined;
-
-  const sendSerializedMessage = async (
-    serializedMessage: string
-  ): Promise<void> =>
-    new Promise<void>((resolve, reject) => {
-      socket.send(serializedMessage, (error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-
-        resolve();
-      });
-    });
-
-  await new Promise<void>((resolve, reject) => {
-    const handleOpen = () => {
-      socket.off("error", handleError);
-      resolve();
-    };
-
-    const handleError = (error: Error) => {
-      socket.off("open", handleOpen);
-      reject(error);
-    };
-
-    socket.once("open", handleOpen);
-    socket.once("error", handleError);
+  const session = await createAgentSession({
+    serverUrl: input.serverUrl,
+    device: {
+      id: input.device.id,
+      name: input.device.name,
+      hostname: input.device.hostname,
+      capabilities: [...registerCapabilities]
+    },
+    executors: {
+      executeNotify,
+      executeOpenApp,
+      executeSetVolume,
+      executePlayMedia
+    },
+    ...(input.onCommand ? { onCommand: input.onCommand } : {})
   });
-
-  socket.on("message", (rawMessage) => {
-    const dispatchMessage = parseCommandDispatchMessage(rawMessage.toString());
-    if (!dispatchMessage) {
-      return;
-    }
-
-    void (async () => {
-      const commandId = dispatchMessage.payload.commandId;
-      const commandAckPayload = await dispatchIntentExecution({
-        commandId,
-        intent: dispatchMessage.payload.intent,
-        params: dispatchMessage.payload.params,
-        executors: {
-          executeNotify,
-          executeOpenApp,
-          executeSetVolume,
-          executePlayMedia
-        }
-      });
-
-      try {
-        await input.onCommand?.({
-          commandId,
-          intent: dispatchMessage.payload.intent,
-          params: dispatchMessage.payload.params
-        });
-      } finally {
-        if (socket.readyState !== WebSocket.OPEN) {
-          return;
-        }
-
-        await sendSerializedMessage(
-          JSON.stringify(
-            createCommandAckMessage(commandAckPayload)
-          )
-        );
-      }
-    })().catch(() => undefined);
-  });
-
-  await sendSerializedMessage(
-    JSON.stringify(
-      createAgentRegisterMessage({
-        id: input.device.id,
-        name: input.device.name,
-        hostname: input.device.hostname,
-        capabilities: [...registerCapabilities]
-      })
-    )
-  );
 
   try {
     discoveryAnnouncer = startDiscoveryAnnouncer({
@@ -223,17 +154,17 @@ export const connectAgent = async (
 
   if (heartbeatIntervalMs > 0) {
     heartbeatInterval = setInterval(() => {
-      if (socket.readyState !== WebSocket.OPEN) {
+      if (!session.isOpen()) {
         return;
       }
 
-      void sendSerializedMessage(
+      void session.sendSerializedMessage(
         JSON.stringify(createAgentHeartbeatMessage({}))
       ).catch(() => undefined);
     }, heartbeatIntervalMs);
   }
 
-  socket.on("close", () => {
+  session.onClose(() => {
     if (heartbeatInterval) {
       clearInterval(heartbeatInterval);
       heartbeatInterval = undefined;
@@ -249,7 +180,7 @@ export const connectAgent = async (
 
   return {
     disconnect: async () => {
-      if (socket.readyState === WebSocket.CLOSED) {
+      if (!session.isOpen()) {
         return;
       }
 
@@ -263,10 +194,7 @@ export const connectAgent = async (
         discoveryAnnouncer = undefined;
       }
 
-      await new Promise<void>((resolve) => {
-        socket.once("close", () => resolve());
-        socket.close();
-      });
+      await session.disconnect();
     }
   };
 };

@@ -629,6 +629,13 @@ Evitar:
 - capacidades e exemplos fora do escopo canonico atual foram removidos do web (`screenshot`, `shutdown` e placeholder de desligar)
 - testes de protocolo, agent, server e web foram atualizados; suites tocadas pelo slice estao verdes
 
+### Slice 55 - extracao da sessao de conexao do agent (Concluido)
+
+- logica de handshake WebSocket, register inicial, parsing de `command.dispatch`, execucao de intent e envio de `command.ack` foi extraida para o novo modulo interno `apps/agent/src/agent-session.ts`
+- `connectAgent` permaneceu como orquestrador de lifecycle, mantendo ownership de heartbeat, discovery announcer e callback `onDisconnect`
+- contrato publico de `connectAgent` foi preservado, sem mudancas em runtime env/CLI ou no fluxo de reconnect
+- testes unitarios dedicados de sessao adicionados e regressao de runtime/dispatch validada verde
+
 ## 11. Critérios de Conclusão por Slice
 
 Cada slice deve:
@@ -737,11 +744,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 54 concluido em 2026-04-03.
+Slice 55 concluido em 2026-04-03.
 
 Proximo passo recomendado:
 
--> Slice 55 - extracao da sessao de conexao do agent
+-> Slice 56 - extracao do lifecycle operacional do agent
 
 ### Findings de refactor atuais (2026-04-03)
 
