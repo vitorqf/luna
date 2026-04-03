@@ -55,7 +55,7 @@ export interface BuildArtifactOptions {
 const EMBEDDED_WEB_ARTIFACT_DIR_NAME = "web";
 const WORKSPACE_NODE_MODULES_SCOPE = "@luna";
 const AGENT_RUNTIME_DIR_NAME = "runtime";
-const AGENT_RUNTIME_DEPENDENCIES = ["dotenv", "ws"] as const;
+const AGENT_RUNTIME_DEPENDENCIES = ["dotenv", "ws", "zod"] as const;
 const AGENT_WINDOWS_LAUNCHER_NAME = "run-agent.cmd";
 const AGENT_POSIX_LAUNCHER_NAME = "run-agent.sh";
 const PORTABLE_RUNTIME_CACHE_DIR_NAME = ".portable-runtime-cache";

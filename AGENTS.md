@@ -643,6 +643,13 @@ Evitar:
 - cleanup de heartbeat/discovery foi unificado em caminho idempotente compartilhado entre `close` e `disconnect`, preservando o callback `onDisconnect`
 - testes unitarios dedicados do lifecycle adicionados e regressao de runtime/dispatch validada verde
 
+### Slice 57 - modularizacao da configuracao do runtime do agent (Concluido)
+
+- parsing de CLI passou a usar `node:util/parseArgs` e a validacao/coercao da configuracao final passou a usar `zod` em `apps/agent/src/agent-runtime-config.ts`
+- carregamento de `.env` foi extraido para `apps/agent/src/agent-runtime-env.ts`, preservando `override: false`
+- `apps/agent/src/main.ts` passou a manter apenas bootstrap, sinais e supervisor de reconnect, com reexports para manter compatibilidade de imports
+- novos testes unitarios de config/env adicionados, `agent-runtime.integration.test.ts` ficou focado em comportamento de runtime e o artifact do agent passou a incluir `zod`; regressao validada verde
+
 ## 11. Critérios de Conclusão por Slice
 
 Cada slice deve:
@@ -751,11 +758,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 56 concluido em 2026-04-03.
+Slice 57 concluido em 2026-04-03.
 
 Proximo passo recomendado:
 
--> Slice 57 - modularizacao da configuracao do runtime do agent
+-> Slice 58 - extracao do supervisor de reconnect do agent
 
 ### Findings de refactor atuais (2026-04-03)
 
@@ -832,7 +839,7 @@ Proximo passo recomendado:
 - mover heartbeat, discovery announcer e cleanup para um modulo proprio
 - unificar caminho de teardown para evitar duplicacao entre `close` e `disconnect`
 
-### Slice 57 - modularizacao da configuracao do runtime do agent
+### Slice 57 - modularizacao da configuracao do runtime do agent (Concluido)
 
 - extrair parsing de CLI, leitura de env e resolucao de configuracao de `apps/agent/src/main.ts`
 - preservar precedencia `CLI > .env > defaults`

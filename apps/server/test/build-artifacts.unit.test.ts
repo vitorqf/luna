@@ -78,6 +78,18 @@ const seedExternalRuntimeDependencyFixtures = async (
     join(projectRoot, "node_modules/ws/index.js"),
     "export class WebSocket {}\n",
   );
+  await writeFixtureFile(
+    join(projectRoot, "node_modules/zod/package.json"),
+    JSON.stringify({
+      name: "zod",
+      type: "module",
+      exports: "./index.js",
+    }),
+  );
+  await writeFixtureFile(
+    join(projectRoot, "node_modules/zod/index.js"),
+    "export const z = {};\n",
+  );
 };
 
 const seedRuntimeFixture = async (
@@ -177,6 +189,9 @@ describe("slice 25 - build artifacts", () => {
       ).resolves.toBe(true);
       await expect(
         pathExists(join(artifactRoot, "node_modules/ws/package.json")),
+      ).resolves.toBe(true);
+      await expect(
+        pathExists(join(artifactRoot, "node_modules/zod/package.json")),
       ).resolves.toBe(true);
       await expect(
         pathExists(join(artifactRoot, "runtime/node")),
