@@ -20,6 +20,8 @@ Required variables for runtime:
 - `LUNA_AGENT_DEVICE_ID`
 - `LUNA_AGENT_DEVICE_NAME`
 - `LUNA_AGENT_DEVICE_HOSTNAME`
+- `LUNA_AGENT_RECONNECT_INITIAL_DELAY_MS` (optional, default `1000`)
+- `LUNA_AGENT_RECONNECT_MAX_DELAY_MS` (optional, default `30000`)
 - `NEXT_PUBLIC_LUNA_SERVER_URL` (optional for standalone web dev)
 
 ## 3. Run the embedded Docker image

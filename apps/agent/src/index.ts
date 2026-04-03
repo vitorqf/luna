@@ -34,6 +34,7 @@ export interface ConnectAgentInput {
   device: AgentIdentity;
   heartbeatIntervalMs?: number;
   discoveryIntervalMs?: number;
+  onDisconnect?: () => void;
   onCommand?: (command: ReceivedCommand) => void | Promise<void>;
   executeNotify?: (
     notification: LocalNotification
@@ -244,6 +245,8 @@ export const connectAgent = async (
       discoveryAnnouncer.stop();
       discoveryAnnouncer = undefined;
     }
+
+    input.onDisconnect?.();
   });
 
   return {

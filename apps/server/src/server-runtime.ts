@@ -93,6 +93,10 @@ export const stopServerRuntime = async (
     discoverySocket: Socket | undefined;
   },
 ): Promise<void> => {
+  for (const client of runtime.webSocketServer.clients) {
+    client.terminate();
+  }
+
   await new Promise<void>((resolve, reject) => {
     runtime.webSocketServer.close((error) => {
       if (error) {

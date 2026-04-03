@@ -603,6 +603,16 @@ Evitar:
 - testes unitarios do builder foram ampliados para validar existencia/conteudo do README e metadata atualizada de files
 - validacao via npm pack confirmou README.md presente no tarball publicado
 
+### Slice 52 - reconexao automatica resiliente do agent (Concluido)
+
+- runtime do agent ganhou supervisor de conexao com retry automatico quando o server esta indisponivel no boot e quando a conexao cai apos estar online
+- politica de retry implementada com backoff exponencial sem jitter (fator 2) e teto configuravel, com reset para o delay inicial apos reconexao bem-sucedida
+- novas env vars publicas no runtime do agent: LUNA_AGENT_RECONNECT_INITIAL_DELAY_MS (default 1000) e LUNA_AGENT_RECONNECT_MAX_DELAY_MS (default 30000)
+- validacao de configuracao adicionada para garantir delays inteiros positivos e max >= initial, com erro explicito em caso invalido
+- connectAgent passou a aceitar callback opcional onDisconnect para o supervisor decidir a reconexao sem alterar o contrato de mensagens do protocolo
+- testes de integracao do runtime cobrem boot sem server com recuperacao posterior, reconexao apos restart do server e parada do loop de retry apos disconnect programatico
+- runtime de stop do server passou a terminar clientes WebSocket ativos antes do close para permitir restart deterministico durante os testes de reconexao
+- documentacao atualizada em .env.example, README.md e RUN_LOCAL.md
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -711,11 +721,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 51 concluido em 2026-04-03.
+Slice 52 concluido em 2026-04-03.
 
 Proximo passo recomendado:
 
--> Slice 52 - a definir
+-> Slice 53 - a definir
 
 ## 19. Observa√ß√£o Final
 

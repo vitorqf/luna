@@ -8,6 +8,8 @@ import {
 } from "./index";
 
 const DEFAULT_SERVER_URL = "ws://127.0.0.1:4000";
+const DEFAULT_RECONNECT_INITIAL_DELAY_MS = 1_000;
+const DEFAULT_RECONNECT_MAX_DELAY_MS = 30_000;
 
 interface RuntimeLogger {
   info: (message: string) => void;
@@ -28,6 +30,15 @@ export interface AgentRuntimeCliArgs {
 export interface AgentRuntimeConfig {
   serverUrl: string;
   device: AgentIdentity;
+}
+
+export interface AgentRuntimeReconnectConfig {
+  initialDelayMs: number;
+  maxDelayMs: number;
+}
+
+interface ResolvedAgentRuntimeConfig extends AgentRuntimeConfig {
+  reconnect: AgentRuntimeReconnectConfig;
 }
 
 const parseNonEmptyString = (
@@ -75,6 +86,24 @@ const parseCliPort = (value: string): number => {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 65_535) {
     throw new Error("--server-port must be an integer between 1 and 65535.");
+  }
+
+  return parsed;
+};
+
+const parsePositiveIntegerEnv = (
+  variableName: string,
+  rawValue: string | undefined,
+  fallback: number,
+): number => {
+  const normalized = rawValue?.trim();
+  if (!normalized) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(normalized, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${variableName} must be a positive integer.`);
   }
 
   return parsed;
@@ -151,8 +180,9 @@ const parseWsPort = (url: URL): number => {
 const resolveRuntimeConfig = (
   env: RuntimeEnv,
   cliArgs: AgentRuntimeCliArgs,
-): AgentRuntimeConfig => {
+): ResolvedAgentRuntimeConfig => {
   const parsedFromEnv = parseAgentRuntimeConfig(env);
+  const reconnectConfig = parseAgentRuntimeReconnectConfig(env);
   const envServerUrl = parseServerUrl(env.LUNA_AGENT_SERVER_URL);
   const parsedEnvServerUrl = new URL(envServerUrl);
   const parsedDefaultServerUrl = new URL(DEFAULT_SERVER_URL);
@@ -180,6 +210,7 @@ const resolveRuntimeConfig = (
         (cliArgs.deviceHostname ? deviceHostname : parsedFromEnv.device.name),
       hostname: deviceHostname,
     },
+    reconnect: reconnectConfig,
   };
 };
 
@@ -217,6 +248,32 @@ export const parseAgentRuntimeConfig = (
   };
 };
 
+export const parseAgentRuntimeReconnectConfig = (
+  env: RuntimeEnv = process.env,
+): AgentRuntimeReconnectConfig => {
+  const initialDelayMs = parsePositiveIntegerEnv(
+    "LUNA_AGENT_RECONNECT_INITIAL_DELAY_MS",
+    env.LUNA_AGENT_RECONNECT_INITIAL_DELAY_MS,
+    DEFAULT_RECONNECT_INITIAL_DELAY_MS,
+  );
+  const maxDelayMs = parsePositiveIntegerEnv(
+    "LUNA_AGENT_RECONNECT_MAX_DELAY_MS",
+    env.LUNA_AGENT_RECONNECT_MAX_DELAY_MS,
+    DEFAULT_RECONNECT_MAX_DELAY_MS,
+  );
+
+  if (maxDelayMs < initialDelayMs) {
+    throw new Error(
+      "LUNA_AGENT_RECONNECT_MAX_DELAY_MS must be greater than or equal to LUNA_AGENT_RECONNECT_INITIAL_DELAY_MS.",
+    );
+  }
+
+  return {
+    initialDelayMs,
+    maxDelayMs,
+  };
+};
+
 export const loadAgentRuntimeEnvFromFile = (
   envFilePath = ".env",
   targetEnv: RuntimeEnv = process.env,
@@ -236,17 +293,124 @@ export const startAgentRuntimeFromEnv = async (
 ): Promise<AgentConnection> => {
   const cliArgs = parseAgentRuntimeCliArgs(cliArgv);
   const runtimeConfig = resolveRuntimeConfig(env, cliArgs);
+  let activeConnection: AgentConnection | undefined;
+  let reconnectDelayMs = runtimeConfig.reconnect.initialDelayMs;
+  let reconnectTimer: NodeJS.Timeout | undefined;
+  let connectAttempt: Promise<void> | undefined;
+  let isStopping = false;
 
-  const connection = await connectAgent({
-    serverUrl: runtimeConfig.serverUrl,
-    device: runtimeConfig.device,
-  });
+  const clearReconnectTimer = (): void => {
+    if (!reconnectTimer) {
+      return;
+    }
 
-  logger.info(
-    `[luna][agent] connected as ${runtimeConfig.device.id} to ${runtimeConfig.serverUrl}`,
-  );
+    clearTimeout(reconnectTimer);
+    reconnectTimer = undefined;
+  };
 
-  return connection;
+  const getNextReconnectDelayMs = (delayMs: number): number =>
+    Math.min(delayMs * 2, runtimeConfig.reconnect.maxDelayMs);
+
+  const scheduleReconnect = (delayMs: number): void => {
+    if (isStopping) {
+      return;
+    }
+
+    clearReconnectTimer();
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = undefined;
+      void ensureConnected();
+    }, delayMs);
+  };
+
+  const scheduleReconnectAndIncreaseDelay = (
+    error: unknown,
+    context: "connection failed" | "connection closed",
+  ): void => {
+    const retryDelayMs = reconnectDelayMs;
+    reconnectDelayMs = getNextReconnectDelayMs(reconnectDelayMs);
+    const reason =
+      error instanceof Error && error.message.trim().length > 0
+        ? error.message
+        : "Unknown connection error.";
+    logger.error(
+      `[luna][agent] ${context}: ${reason}. Retrying in ${retryDelayMs}ms.`,
+    );
+    scheduleReconnect(retryDelayMs);
+  };
+
+  const ensureConnected = async (): Promise<void> => {
+    if (isStopping || activeConnection || connectAttempt) {
+      return;
+    }
+
+    const attempt = (async () => {
+      try {
+        const connectedAgent = await connectAgent({
+          serverUrl: runtimeConfig.serverUrl,
+          device: runtimeConfig.device,
+          onDisconnect: () => {
+            activeConnection = undefined;
+            if (isStopping) {
+              return;
+            }
+
+            scheduleReconnectAndIncreaseDelay(
+              new Error("WebSocket closed"),
+              "connection closed",
+            );
+          },
+        });
+
+        if (isStopping) {
+          await connectedAgent.disconnect();
+          return;
+        }
+
+        activeConnection = connectedAgent;
+        reconnectDelayMs = runtimeConfig.reconnect.initialDelayMs;
+        logger.info(
+          `[luna][agent] connected as ${runtimeConfig.device.id} to ${runtimeConfig.serverUrl}`,
+        );
+      } catch (error) {
+        if (isStopping) {
+          return;
+        }
+
+        scheduleReconnectAndIncreaseDelay(error, "connection failed");
+      } finally {
+        connectAttempt = undefined;
+      }
+    })();
+
+    connectAttempt = attempt;
+    await attempt;
+  };
+
+  void ensureConnected();
+
+  return {
+    disconnect: async () => {
+      if (isStopping) {
+        return;
+      }
+
+      isStopping = true;
+      clearReconnectTimer();
+
+      const pendingConnectAttempt = connectAttempt;
+      const connectionToClose = activeConnection;
+      activeConnection = undefined;
+
+      if (connectionToClose) {
+        await connectionToClose.disconnect();
+      }
+
+      if (pendingConnectAttempt) {
+        await pendingConnectAttempt.catch(() => undefined);
+      }
+    },
+  };
 };
 
 export const runAgentMain = async (

@@ -2,7 +2,7 @@
 
 Luna is a self-hosted virtual assistant for homelabs. It routes natural-language commands to registered devices (agents), executes local actions, and returns structured success/failure feedback to the web UI.
 
-Current status: MVP through **Slice 49** (agent npm CLI package) is complete as of **April 3, 2026**.
+Current status: MVP through **Slice 52** (resilient agent reconnect runtime) is complete as of **April 3, 2026**.
 
 ## Table of Contents
 
@@ -105,6 +105,8 @@ Copy `.env.example` to `.env` and adjust values as needed.
 | `LUNA_AGENT_DEVICE_ID`        | No       | OS hostname              | Stable device id                               |
 | `LUNA_AGENT_DEVICE_NAME`      | No       | device hostname          | Display name/alias fallback                    |
 | `LUNA_AGENT_DEVICE_HOSTNAME`  | No       | OS hostname              | Device hostname metadata                       |
+| `LUNA_AGENT_RECONNECT_INITIAL_DELAY_MS` | No | `1000` | Initial reconnect delay in milliseconds |
+| `LUNA_AGENT_RECONNECT_MAX_DELAY_MS` | No | `30000` | Maximum reconnect delay in milliseconds |
 | `NEXT_PUBLIC_LUNA_SERVER_URL` | No       | empty in embedded builds | Base URL used by web app (empty = same-origin) |
 
 ### Agent CLI Overrides
