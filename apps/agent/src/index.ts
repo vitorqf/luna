@@ -1,12 +1,9 @@
 import {
-  createAgentHeartbeatMessage
-} from "@luna/protocol";
-import {
   DEVICE_CAPABILITIES,
   type DeviceCapability,
 } from "@luna/shared-types";
+import { createAgentOperationalLifecycle } from "./agent-operational-lifecycle";
 import { createAgentSession } from "./agent-session";
-import { createDiscoveryAnnouncer } from "./discovery-announcer";
 import { createNotifyLauncher } from "./notify-launcher";
 import { createOpenAppLauncher } from "./open-app-launcher";
 import { createPlayMediaLauncher } from "./play-media-launcher";
@@ -91,16 +88,6 @@ const executeLocalPlayMedia = async (
   playMedia: LocalPlayMedia
 ): Promise<void> => launchPlayMedia(playMedia);
 
-const startDiscoveryAnnouncer = createDiscoveryAnnouncer();
-
-const getErrorReason = (error: unknown): string => {
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message;
-  }
-
-  return "Unknown launcher error.";
-};
-
 export const connectAgent = async (
   input: ConnectAgentInput
 ): Promise<AgentConnection> => {
@@ -112,12 +99,6 @@ export const connectAgent = async (
   const executeOpenApp = input.executeOpenApp ?? executeLocalOpenApp;
   const executeSetVolume = input.executeSetVolume ?? executeLocalSetVolume;
   const executePlayMedia = input.executePlayMedia ?? executeLocalPlayMedia;
-  let heartbeatInterval: NodeJS.Timeout | undefined;
-  let discoveryAnnouncer:
-    | {
-        stop: () => void;
-      }
-    | undefined;
   const session = await createAgentSession({
     serverUrl: input.serverUrl,
     device: {
@@ -134,67 +115,20 @@ export const connectAgent = async (
     },
     ...(input.onCommand ? { onCommand: input.onCommand } : {})
   });
-
-  try {
-    discoveryAnnouncer = startDiscoveryAnnouncer({
-      serverUrl: input.serverUrl,
-      device: {
-        id: input.device.id,
-        hostname: input.device.hostname,
-        capabilities: [...registerCapabilities]
-      },
-      intervalMs: discoveryIntervalMs
-    });
-  } catch (error) {
-    console.error("[luna][discovery][error]", {
-      deviceId: input.device.id,
-      reason: getErrorReason(error)
-    });
-  }
-
-  if (heartbeatIntervalMs > 0) {
-    heartbeatInterval = setInterval(() => {
-      if (!session.isOpen()) {
-        return;
-      }
-
-      void session.sendSerializedMessage(
-        JSON.stringify(createAgentHeartbeatMessage({}))
-      ).catch(() => undefined);
-    }, heartbeatIntervalMs);
-  }
-
-  session.onClose(() => {
-    if (heartbeatInterval) {
-      clearInterval(heartbeatInterval);
-      heartbeatInterval = undefined;
-    }
-
-    if (discoveryAnnouncer) {
-      discoveryAnnouncer.stop();
-      discoveryAnnouncer = undefined;
-    }
-
-    input.onDisconnect?.();
+  const lifecycle = createAgentOperationalLifecycle({
+    session,
+    serverUrl: input.serverUrl,
+    device: {
+      id: input.device.id,
+      hostname: input.device.hostname,
+      capabilities: [...registerCapabilities],
+    },
+    heartbeatIntervalMs,
+    discoveryIntervalMs,
+    ...(input.onDisconnect ? { onDisconnect: input.onDisconnect } : {}),
   });
 
   return {
-    disconnect: async () => {
-      if (!session.isOpen()) {
-        return;
-      }
-
-      if (heartbeatInterval) {
-        clearInterval(heartbeatInterval);
-        heartbeatInterval = undefined;
-      }
-
-      if (discoveryAnnouncer) {
-        discoveryAnnouncer.stop();
-        discoveryAnnouncer = undefined;
-      }
-
-      await session.disconnect();
-    }
+    disconnect: () => lifecycle.disconnect(),
   };
 };

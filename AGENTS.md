@@ -636,6 +636,13 @@ Evitar:
 - contrato publico de `connectAgent` foi preservado, sem mudancas em runtime env/CLI ou no fluxo de reconnect
 - testes unitarios dedicados de sessao adicionados e regressao de runtime/dispatch validada verde
 
+### Slice 56 - extracao do lifecycle operacional do agent (Concluido)
+
+- heartbeat, discovery announcer e teardown local foram extraidos para o novo modulo interno `apps/agent/src/agent-operational-lifecycle.ts`
+- `connectAgent` passou a apenas resolver executores/capabilities, criar a sessao e delegar o lifecycle operacional
+- cleanup de heartbeat/discovery foi unificado em caminho idempotente compartilhado entre `close` e `disconnect`, preservando o callback `onDisconnect`
+- testes unitarios dedicados do lifecycle adicionados e regressao de runtime/dispatch validada verde
+
 ## 11. Critérios de Conclusão por Slice
 
 Cada slice deve:
@@ -744,11 +751,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 55 concluido em 2026-04-03.
+Slice 56 concluido em 2026-04-03.
 
 Proximo passo recomendado:
 
--> Slice 56 - extracao do lifecycle operacional do agent
+-> Slice 57 - modularizacao da configuracao do runtime do agent
 
 ### Findings de refactor atuais (2026-04-03)
 
@@ -820,7 +827,7 @@ Proximo passo recomendado:
 - separar de `connectAgent` o handshake, register, recebimento de mensagens e envio de ack
 - deixar a funcao principal apenas como orquestradora de uma sessao dedicada
 
-### Slice 56 - extracao do lifecycle operacional do agent
+### Slice 56 - extracao do lifecycle operacional do agent (Concluido)
 
 - mover heartbeat, discovery announcer e cleanup para um modulo proprio
 - unificar caminho de teardown para evitar duplicacao entre `close` e `disconnect`
