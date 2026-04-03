@@ -16,6 +16,15 @@ interface RuntimeLogger {
 
 type RuntimeEnv = Record<string, string | undefined>;
 
+export interface AgentRuntimeCliArgs {
+  serverUrl?: string;
+  serverHost?: string;
+  serverPort?: number;
+  deviceId?: string;
+  deviceName?: string;
+  deviceHostname?: string;
+}
+
 export interface AgentRuntimeConfig {
   serverUrl: string;
   device: AgentIdentity;
@@ -48,6 +57,130 @@ const parseServerUrl = (value: string | undefined): string => {
   }
 
   return normalized;
+};
+
+const parseCliNonEmptyValue = (
+  option: string,
+  value: string | undefined,
+): string => {
+  const normalized = value?.trim();
+  if (!normalized) {
+    throw new Error(`${option} requires a non-empty value.`);
+  }
+
+  return normalized;
+};
+
+const parseCliPort = (value: string): number => {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 65_535) {
+    throw new Error("--server-port must be an integer between 1 and 65535.");
+  }
+
+  return parsed;
+};
+
+export const parseAgentRuntimeCliArgs = (
+  argv: string[] = process.argv.slice(2),
+): AgentRuntimeCliArgs => {
+  const cliArgs: AgentRuntimeCliArgs = {};
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+
+    if (!argument) {
+      continue;
+    }
+
+    if (argument === "--server-url") {
+      cliArgs.serverUrl = parseCliNonEmptyValue("--server-url", argv[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (argument === "--server-host") {
+      cliArgs.serverHost = parseCliNonEmptyValue("--server-host", argv[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (argument === "--server-port") {
+      const value = parseCliNonEmptyValue("--server-port", argv[index + 1]);
+      cliArgs.serverPort = parseCliPort(value);
+      index += 1;
+      continue;
+    }
+
+    if (argument === "--device-id") {
+      cliArgs.deviceId = parseCliNonEmptyValue("--device-id", argv[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (argument === "--device-name") {
+      cliArgs.deviceName = parseCliNonEmptyValue("--device-name", argv[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (argument === "--device-hostname") {
+      cliArgs.deviceHostname = parseCliNonEmptyValue(
+        "--device-hostname",
+        argv[index + 1],
+      );
+      index += 1;
+      continue;
+    }
+
+    if (argument.startsWith("--")) {
+      throw new Error(`Unknown CLI argument: ${argument}`);
+    }
+  }
+
+  return cliArgs;
+};
+
+const parseWsPort = (url: URL): number => {
+  if (!url.port) {
+    return url.protocol === "wss:" ? 443 : 80;
+  }
+
+  return Number.parseInt(url.port, 10);
+};
+
+const resolveRuntimeConfig = (
+  env: RuntimeEnv,
+  cliArgs: AgentRuntimeCliArgs,
+): AgentRuntimeConfig => {
+  const parsedFromEnv = parseAgentRuntimeConfig(env);
+  const envServerUrl = parseServerUrl(env.LUNA_AGENT_SERVER_URL);
+  const parsedEnvServerUrl = new URL(envServerUrl);
+  const parsedDefaultServerUrl = new URL(DEFAULT_SERVER_URL);
+
+  let serverUrl = parsedFromEnv.serverUrl;
+  if (cliArgs.serverUrl) {
+    serverUrl = parseServerUrl(cliArgs.serverUrl);
+  } else if (cliArgs.serverHost || cliArgs.serverPort !== undefined) {
+    const protocol = parsedEnvServerUrl.protocol;
+    const serverHost = cliArgs.serverHost ?? parsedEnvServerUrl.hostname;
+    const serverPort = cliArgs.serverPort ?? parseWsPort(parsedEnvServerUrl);
+    serverUrl = `${protocol}//${serverHost}:${serverPort}`;
+  } else if (!env.LUNA_AGENT_SERVER_URL?.trim()) {
+    serverUrl = `${parsedDefaultServerUrl.protocol}//${parsedDefaultServerUrl.hostname}:${parseWsPort(parsedDefaultServerUrl)}`;
+  }
+
+  const deviceHostname = cliArgs.deviceHostname ?? parsedFromEnv.device.hostname;
+
+  return {
+    serverUrl,
+    device: {
+      id: cliArgs.deviceId ?? parsedFromEnv.device.id,
+      name:
+        cliArgs.deviceName ??
+        (cliArgs.deviceHostname ? deviceHostname : parsedFromEnv.device.name),
+      hostname: deviceHostname,
+    },
+  };
 };
 
 const waitForShutdownSignal = (): Promise<NodeJS.Signals> =>
@@ -99,8 +232,10 @@ export const loadAgentRuntimeEnvFromFile = (
 export const startAgentRuntimeFromEnv = async (
   env: RuntimeEnv = process.env,
   logger: RuntimeLogger = console,
+  cliArgv: string[] = process.argv.slice(2),
 ): Promise<AgentConnection> => {
-  const runtimeConfig = parseAgentRuntimeConfig(env);
+  const cliArgs = parseAgentRuntimeCliArgs(cliArgv);
+  const runtimeConfig = resolveRuntimeConfig(env, cliArgs);
 
   const connection = await connectAgent({
     serverUrl: runtimeConfig.serverUrl,
@@ -117,8 +252,9 @@ export const startAgentRuntimeFromEnv = async (
 export const runAgentMain = async (
   env: RuntimeEnv = process.env,
   logger: RuntimeLogger = console,
+  cliArgv: string[] = process.argv.slice(2),
 ): Promise<void> => {
-  const connection = await startAgentRuntimeFromEnv(env, logger);
+  const connection = await startAgentRuntimeFromEnv(env, logger, cliArgv);
 
   try {
     const signal = await waitForShutdownSignal();
@@ -130,7 +266,7 @@ export const runAgentMain = async (
 
 if (isMainModule(import.meta.url)) {
   loadAgentRuntimeEnvFromFile();
-  void runAgentMain().catch((error) => {
+  void runAgentMain(process.env, console, process.argv.slice(2)).catch((error) => {
     const message =
       error instanceof Error ? error.message : "Unknown agent runtime failure.";
     console.error(`[luna][agent] failed to start: ${message}`);

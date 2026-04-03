@@ -172,6 +172,7 @@ describe("slice 25 - build artifacts", () => {
       );
       expect(launcherSource).toContain('./runtime/node');
       expect(launcherSource).toContain('./dist/apps/agent/src/main.js');
+      expect(launcherSource).toContain('"$@"');
     } finally {
       await rm(projectRoot, { recursive: true, force: true });
     }
@@ -203,6 +204,7 @@ describe("slice 25 - build artifacts", () => {
       );
       expect(launcherSource).toContain('runtime\\node.exe');
       expect(launcherSource).toContain('dist\\apps\\agent\\src\\main.js');
+      expect(launcherSource).toContain("%*");
     } finally {
       await rm(projectRoot, { recursive: true, force: true });
     }
@@ -230,6 +232,36 @@ describe("slice 25 - build artifacts", () => {
       );
 
       expect(artifactEntrySource).toContain('import "./index.js";');
+    } finally {
+      await rm(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("rewrites relative js imports for workspace packages copied into node_modules", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "luna-artifact-workspace-runtime-"));
+
+    try {
+      await seedDistFixtures(projectRoot);
+      await seedEmbeddedWebFixtures(projectRoot);
+      await writeFixtureFile(
+        join(projectRoot, "dist/packages/command-parser/src/index.js"),
+        'export { parseCommand } from "./parser-types";\n',
+      );
+      await writeFixtureFile(
+        join(projectRoot, "dist/packages/command-parser/src/parser-types.js"),
+        "export const parseCommand = () => null;\n",
+      );
+
+      const artifactRoot = await createBuildArtifact("server", { projectRoot });
+      const commandParserSource = await readFile(
+        join(
+          artifactRoot,
+          "node_modules/@luna/command-parser/src/index.js",
+        ),
+        "utf-8",
+      );
+
+      expect(commandParserSource).toContain('from "./parser-types.js";');
     } finally {
       await rm(projectRoot, { recursive: true, force: true });
     }

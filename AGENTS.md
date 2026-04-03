@@ -553,6 +553,23 @@ Evitar:
 - testes de integracao foram ampliados para tipos invalidos de campos obrigatorios em submit e rename, preservando o contrato HTTP existente
 - regressao validada com `command-submit.integration.test.ts`, `device-rename.integration.test.ts` e `agent-discovery.integration.test.ts` verdes
 
+### Slice 46 - runtime Docker do server com dependencias completas e imports ESM corrigidos (Concluido)
+
+- Dockerfile do server passou a copiar `node_modules/zod` para a imagem final, junto de `dotenv` e `ws`, evitando `ERR_MODULE_NOT_FOUND` no boot
+- builder de artifacts passou a copiar `@luna/*` para `node_modules` a partir do `dist` ja reescrito (com `.js` nos imports relativos), eliminando falha de runtime em `@luna/command-parser`
+- novo teste unitario `apps/server/test/docker-runtime-dependencies.unit.test.ts` garante presenca explicita de `dotenv`, `ws` e `zod` no runtime Docker
+- `apps/server/test/build-artifacts.unit.test.ts` ganhou cobertura para garantir rewrite de imports relativos tambem nos pacotes workspace copiados para `node_modules`
+- validacao real em container confirmou boot do server e resposta de `GET /devices` com sucesso
+
+### Slice 47 - configuracao de conexao do agent via CLI (Concluido)
+
+- runtime do agent ganhou parser de argumentos CLI: `--server-url`, `--server-host`, `--server-port`, `--device-id`, `--device-name`, `--device-hostname`
+- resolucao de configuracao agora aplica precedencia `CLI > .env > defaults`, permitindo definir a porta do Luna Server no momento de subir o agent
+- launchers do artifact (`run-agent.cmd` e `run-agent.sh`) passaram a encaminhar argumentos para o runtime (`%*` e `"$@"`)
+- launchers nao encerram mais no primeiro bootstrap de `.env`; quando ausente, criam o arquivo e seguem com defaults/CLI
+- testes de runtime do agent cobrem parse de CLI e conexao usando apenas argumentos de linha de comando
+- smoke test do pacote do agent valida conexao com runtime embutido usando argumentos CLI
+
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -661,11 +678,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 45 concluido em 2026-03-31.
+Slice 47 concluido em 2026-04-03.
 
 Proximo passo recomendado:
 
--> Slice 46 - a definir
+-> Slice 48 - a definir
 
 ## 19. Observa√ß√£o Final
 

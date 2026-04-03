@@ -127,10 +127,9 @@ const createAgentLauncherSource = (platform: NodeJS.Platform): string =>
         'cd /d "%~dp0"',
         'if not exist ".env" (',
         '  copy /Y ".env.example" ".env" >nul',
-        '  echo [luna][agent] created .env from template. Update LUNA_AGENT_SERVER_URL and run again.',
-        "  exit /b 1",
+        '  echo [luna][agent] created .env from template. Starting with defaults and CLI overrides.',
         ")",
-        '"%~dp0runtime\\node.exe" "%~dp0dist\\apps\\agent\\src\\main.js"',
+        '"%~dp0runtime\\node.exe" "%~dp0dist\\apps\\agent\\src\\main.js" %*',
         "exit /b %errorlevel%",
         "",
       ].join("\n")
@@ -141,10 +140,9 @@ const createAgentLauncherSource = (platform: NodeJS.Platform): string =>
         'cd "$SCRIPT_DIR"',
         'if [ ! -f ".env" ]; then',
         '  cp ".env.example" ".env"',
-        '  echo "[luna][agent] created .env from template. Update LUNA_AGENT_SERVER_URL and run again."',
-        "  exit 1",
+        '  echo "[luna][agent] created .env from template. Starting with defaults and CLI overrides."',
         "fi",
-        'exec "./runtime/node" "./dist/apps/agent/src/main.js"',
+        'exec "./runtime/node" "./dist/apps/agent/src/main.js" "$@"',
         "",
       ].join("\n");
 
@@ -250,7 +248,9 @@ export const createBuildArtifact = async (
     );
 
     await mkdir(dirname(packageArtifactRoot), { recursive: true });
-    await cp(join(sourceDistRoot, entry), packageArtifactRoot, { recursive: true });
+    await cp(join(artifactRoot, distDirName, entry), packageArtifactRoot, {
+      recursive: true,
+    });
     await writeFile(
       join(packageArtifactRoot, "package.json"),
       `${JSON.stringify(

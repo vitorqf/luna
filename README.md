@@ -107,6 +107,22 @@ Copy `.env.example` to `.env` and adjust values as needed.
 | `LUNA_AGENT_DEVICE_HOSTNAME`  | No       | OS hostname              | Device hostname metadata                       |
 | `NEXT_PUBLIC_LUNA_SERVER_URL` | No       | empty in embedded builds | Base URL used by web app (empty = same-origin) |
 
+### Agent CLI Overrides
+
+When running the agent, CLI flags override `.env` values:
+
+- `--server-url`
+- `--server-host`
+- `--server-port`
+- `--device-id`
+- `--device-name`
+- `--device-hostname`
+
+Examples:
+
+- `npm run start:agent -- --server-host 192.168.0.10 --server-port 4000`
+- `dist-artifacts/agent/run-agent.cmd --server-host 192.168.0.10 --server-port 4000`
+
 ## Quick Start (Local Development)
 
 1. Install dependencies:

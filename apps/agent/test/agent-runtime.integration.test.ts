@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { createLunaServer } from "../../server/src/index";
 import {
   loadAgentRuntimeEnvFromFile,
+  parseAgentRuntimeCliArgs,
   parseAgentRuntimeConfig,
   startAgentRuntimeFromEnv
 } from "../src/main";
@@ -41,6 +42,29 @@ const waitForAssertion = async (
 };
 
 describe("slice 9 - agent runtime", () => {
+  it("parses cli args for server and device overrides", () => {
+    const cliArgs = parseAgentRuntimeCliArgs([
+      "--server-host",
+      "192.168.0.20",
+      "--server-port",
+      "4100",
+      "--device-id",
+      "cli-device",
+      "--device-name",
+      "CLI Device",
+      "--device-hostname",
+      "cli-device.local"
+    ]);
+
+    expect(cliArgs).toEqual({
+      serverHost: "192.168.0.20",
+      serverPort: 4100,
+      deviceId: "cli-device",
+      deviceName: "CLI Device",
+      deviceHostname: "cli-device.local"
+    });
+  });
+
   it("loads agent runtime env values from a .env file", async () => {
     const tempDir = await mkdtemp(join(tmpdir(), "luna-agent-env-"));
     const envFilePath = join(tempDir, ".env");
@@ -128,6 +152,87 @@ describe("slice 9 - agent runtime", () => {
             id: "notebook-2",
             name: "Notebook 2",
             hostname: "notebook-2.local",
+            status: "online",
+            capabilities: [...DEFAULT_AGENT_CAPABILITIES]
+          }
+        ]);
+      });
+    } finally {
+      if (agentConnection) {
+        await agentConnection.disconnect();
+      }
+
+      await server.stop();
+    }
+  });
+
+  it("prioritizes cli server settings over env url", async () => {
+    const server = createLunaServer({
+      host: "127.0.0.1",
+      port: 0
+    });
+    await server.start();
+
+    let agentConnection: { disconnect: () => Promise<void> } | undefined;
+
+    try {
+      agentConnection = await startAgentRuntimeFromEnv(
+        {
+          LUNA_AGENT_SERVER_URL: "ws://127.0.0.1:65535",
+          LUNA_AGENT_DEVICE_ID: "cli-priority-agent",
+          LUNA_AGENT_DEVICE_NAME: "CLI Priority Agent",
+          LUNA_AGENT_DEVICE_HOSTNAME: "cli-priority-agent.local"
+        },
+        console,
+        ["--server-host", "127.0.0.1", "--server-port", String(server.getPort())]
+      );
+
+      await waitForAssertion(() => {
+        expect(server.getRegisteredDevices()).toEqual([
+          {
+            id: "cli-priority-agent",
+            name: "CLI Priority Agent",
+            hostname: "cli-priority-agent.local",
+            status: "online",
+            capabilities: [...DEFAULT_AGENT_CAPABILITIES]
+          }
+        ]);
+      });
+    } finally {
+      if (agentConnection) {
+        await agentConnection.disconnect();
+      }
+
+      await server.stop();
+    }
+  });
+
+  it("starts runtime from cli server args when env server url is not provided", async () => {
+    const server = createLunaServer({
+      host: "127.0.0.1",
+      port: 0
+    });
+    await server.start();
+
+    let agentConnection: { disconnect: () => Promise<void> } | undefined;
+
+    try {
+      agentConnection = await startAgentRuntimeFromEnv(
+        {
+          LUNA_AGENT_DEVICE_ID: "cli-only-agent",
+          LUNA_AGENT_DEVICE_NAME: "CLI Only Agent",
+          LUNA_AGENT_DEVICE_HOSTNAME: "cli-only-agent.local"
+        },
+        console,
+        ["--server-host", "127.0.0.1", "--server-port", String(server.getPort())]
+      );
+
+      await waitForAssertion(() => {
+        expect(server.getRegisteredDevices()).toEqual([
+          {
+            id: "cli-only-agent",
+            name: "CLI Only Agent",
+            hostname: "cli-only-agent.local",
             status: "online",
             capabilities: [...DEFAULT_AGENT_CAPABILITIES]
           }

@@ -31,6 +31,7 @@ COPY --from=builder /app/dist-artifacts/server/web ./web
 COPY --from=builder /app/dist-artifacts/server/node_modules/@luna ./node_modules/@luna
 COPY --from=builder /app/node_modules/dotenv ./node_modules/dotenv
 COPY --from=builder /app/node_modules/ws ./node_modules/ws
+COPY --from=builder /app/node_modules/zod ./node_modules/zod
 
 EXPOSE 4000
 

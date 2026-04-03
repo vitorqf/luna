@@ -1,14 +1,14 @@
+import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import {
   cp,
   mkdtemp,
-  readFile,
   rm,
-  writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { createBuildArtifact } from "../../server/src/build-artifacts";
 import { createLunaServer } from "../../server/src/index";
 
 const sleep = (ms: number): Promise<void> =>
@@ -87,19 +87,19 @@ const runCommand = async (
     });
   });
 
-const getLauncherCommand = (
+const getPackagedRuntimeCommand = (
   artifactRoot: string,
 ): { command: string; args: string[] } => {
   if (process.platform === "win32") {
     return {
-      command: "cmd.exe",
-      args: ["/d", "/s", "/c", "run-agent.cmd"],
+      command: join(artifactRoot, "runtime", "node.exe"),
+      args: [join(artifactRoot, "dist", "apps", "agent", "src", "main.js")],
     };
   }
 
   return {
-    command: join(artifactRoot, "run-agent.sh"),
-    args: [],
+    command: join(artifactRoot, "runtime", "node"),
+    args: [join(artifactRoot, "dist", "apps", "agent", "src", "main.js")],
   };
 };
 
@@ -128,15 +128,31 @@ const terminateChild = async (
 
 describe("slice 38 - agent artifact smoke", () => {
   it(
-    "bootstraps .env on first run and connects to the server on the second run",
+    "connects using the packaged runtime and cli server args",
     async () => {
       const workspaceRoot = process.cwd();
-      const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+      const buildCommand =
+        process.platform === "win32"
+          ? {
+              command: "cmd.exe",
+              args: ["/d", "/s", "/c", "npm run build"],
+            }
+          : {
+              command: "npm",
+              args: ["run", "build"],
+            };
       const tempDir = await mkdtemp(join(tmpdir(), "luna-agent-artifact-"));
       const isolatedArtifactRoot = join(tempDir, "agent");
+      const smokeArtifactsDirName = `dist-artifacts-smoke-${randomUUID().slice(0, 8)}`;
+      const smokeArtifactRoot = join(
+        workspaceRoot,
+        smokeArtifactsDirName,
+        "agent",
+      );
 
       let server:
         | {
+            start: () => Promise<void>;
             stop: () => Promise<void>;
             getPort: () => number;
             getRegisteredDevices: () => unknown[];
@@ -145,36 +161,20 @@ describe("slice 38 - agent artifact smoke", () => {
       let agentProcess: ReturnType<typeof spawn> | undefined;
 
       try {
-        await runCommand(npmCommand, ["run", "build:artifact:agent"], {
+        await runCommand(buildCommand.command, buildCommand.args, {
           cwd: workspaceRoot,
           timeoutMs: 240_000,
         });
+        await createBuildArtifact("agent", {
+          projectRoot: workspaceRoot,
+          artifactsDirName: smokeArtifactsDirName,
+        });
 
-        await cp(join(workspaceRoot, "dist-artifacts/agent"), isolatedArtifactRoot, {
+        await cp(smokeArtifactRoot, isolatedArtifactRoot, {
           recursive: true,
         });
 
-        const launcherCommand = getLauncherCommand(isolatedArtifactRoot);
-        const firstRun = await runCommand(
-          launcherCommand.command,
-          launcherCommand.args,
-          {
-            cwd: isolatedArtifactRoot,
-            timeoutMs: 30_000,
-            expectedExitCodes: [1],
-          },
-        );
-
-        const envExample = await readFile(
-          join(isolatedArtifactRoot, ".env.example"),
-          "utf-8",
-        );
-        await expect(
-          readFile(join(isolatedArtifactRoot, ".env"), "utf-8"),
-        ).resolves.toBe(envExample);
-        expect(`${firstRun.stdout}\n${firstRun.stderr}`).toContain(
-          "LUNA_AGENT_SERVER_URL",
-        );
+        const runtimeCommand = getPackagedRuntimeCommand(isolatedArtifactRoot);
 
         server = createLunaServer({
           host: "127.0.0.1",
@@ -182,28 +182,33 @@ describe("slice 38 - agent artifact smoke", () => {
         });
         await server.start();
 
-        await writeFile(
-          join(isolatedArtifactRoot, ".env"),
+        agentProcess = spawn(
+          runtimeCommand.command,
           [
-            `LUNA_AGENT_SERVER_URL=ws://127.0.0.1:${server.getPort()}`,
-            "LUNA_AGENT_DEVICE_ID=artifact-agent",
-            "LUNA_AGENT_DEVICE_NAME=Artifact Agent",
-            "LUNA_AGENT_DEVICE_HOSTNAME=artifact-agent.local",
-          ].join("\n"),
-          "utf-8",
+            ...runtimeCommand.args,
+            "--server-host",
+            "127.0.0.1",
+            "--server-port",
+            String(server.getPort()),
+            "--device-id",
+            "artifact-agent-cli",
+            "--device-name",
+            "Artifact Agent CLI",
+            "--device-hostname",
+            "artifact-agent-cli.local",
+          ],
+          {
+            cwd: isolatedArtifactRoot,
+            stdio: ["ignore", "pipe", "pipe"],
+          },
         );
-
-        agentProcess = spawn(launcherCommand.command, launcherCommand.args, {
-          cwd: isolatedArtifactRoot,
-          stdio: ["ignore", "pipe", "pipe"],
-        });
 
         await waitForAssertion(() => {
           expect(server?.getRegisteredDevices()).toEqual([
             {
-              id: "artifact-agent",
-              name: "Artifact Agent",
-              hostname: "artifact-agent.local",
+              id: "artifact-agent-cli",
+              name: "Artifact Agent CLI",
+              hostname: "artifact-agent-cli.local",
               status: "online",
               capabilities: ["notify", "open_app", "set_volume", "play_media"],
             },
@@ -219,6 +224,10 @@ describe("slice 38 - agent artifact smoke", () => {
         }
 
         await rm(tempDir, { recursive: true, force: true });
+        await rm(join(workspaceRoot, smokeArtifactsDirName), {
+          recursive: true,
+          force: true,
+        });
       }
     },
     300_000,

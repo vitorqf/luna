@@ -99,8 +99,10 @@ First package run:
 
 1. Copy `dist-artifacts/agent` to the target machine.
 2. Run `run-agent.cmd` on Windows or `./run-agent.sh` on Unix-like systems.
-3. The package creates `.env` from `.env.example`, asks you to update `LUNA_AGENT_SERVER_URL`, and exits once.
-4. Edit `.env` and run the launcher again.
+3. If `.env` does not exist, the launcher creates it from `.env.example` and continues execution.
+4. Prefer passing runtime overrides via CLI when starting the agent, for example:
+   - Windows: `run-agent.cmd --server-host 192.168.0.10 --server-port 4000`
+   - Unix: `./run-agent.sh --server-host 192.168.0.10 --server-port 4000`
 
 ## 7. Manual validation
 
