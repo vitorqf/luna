@@ -725,8 +725,133 @@ Slice 52 concluido em 2026-04-03.
 
 Proximo passo recomendado:
 
--> Slice 53 - a definir
+-> Slice 53 - catalogo compartilhado canonico de contratos
 
+### Findings de refactor atuais (2026-04-03)
+
+1. Catalogos canonicos duplicados
+
+- capabilities, reasons e alguns unions de status estao redefinidos em `shared-types`, `protocol`, `agent`, `server` e `web`
+- isso aumenta risco de drift entre contratos, persistencia e UI
+- o web ainda carrega capacidades fora do escopo canonico atual do MVP
+
+2. `connectAgent` com responsabilidades demais
+
+- handshake WebSocket
+- register
+- processamento de mensagens
+- execucao de intent
+- envio de ack
+- heartbeat
+- discovery announcer
+- cleanup e disconnect
+
+3. `apps/agent/src/main.ts` como runtime monolitico
+
+- parsing de CLI
+- leitura de env
+- resolucao de precedencia
+- supervisor de reconnect
+- sinais de processo
+- bootstrap final
+
+4. Composicao de transporte do server ainda concentrada
+
+- `apps/server/src/index.ts` ainda concentra route switch HTTP, hydrate de estado, start e stop
+- `apps/server/src/http-request-handlers.ts` mistura wiring de adapters, parsing, validacao e error mapping
+
+5. Builder de artifacts com acoplamento alto
+
+- `apps/server/src/build-artifacts.ts` concentra download de runtime, extracoes, rewrite de imports, launcher scripts e empacotamento por target
+
+6. Dashboard web com responsabilidades acumuladas
+
+- `apps/web/app/page.tsx` concentra polling, fetch inicial, mapping de snapshot, submit de comando, rename e approve
+
+7. Duplicacao e codigo morto no web
+
+- hooks duplicados (`use-toast` e `use-mobile`)
+- `mock-data.ts` ainda contem datasets e exemplos fora do contrato atual
+
+8. Testes de integracao crescendo como arquivos monoliticos
+
+- repeticao de helpers async (`sleep`, `waitForAssertion`, `setup/teardown`)
+- arquivos muito grandes dificultam manutencao e leitura
+
+### Slices de refactor propostos
+
+### Slice 53 - catalogo compartilhado canonico de contratos
+
+- mover capabilities, reasons e helpers de validacao reutilizaveis para `@luna/shared-types`
+- reduzir duplicacao de unions/string literals entre packages e apps
+- manter contrato externo inalterado
+
+### Slice 54 - alinhamento de contratos no web/protocol/server/agent
+
+- substituir arrays e unions locais pelos contratos canonicos compartilhados
+- remover capacidades fora do escopo canonico atual do web
+- manter UX e payloads externos sem mudanca de comportamento
+
+### Slice 55 - extracao da sessao de conexao do agent
+
+- separar de `connectAgent` o handshake, register, recebimento de mensagens e envio de ack
+- deixar a funcao principal apenas como orquestradora de uma sessao dedicada
+
+### Slice 56 - extracao do lifecycle operacional do agent
+
+- mover heartbeat, discovery announcer e cleanup para um modulo proprio
+- unificar caminho de teardown para evitar duplicacao entre `close` e `disconnect`
+
+### Slice 57 - modularizacao da configuracao do runtime do agent
+
+- extrair parsing de CLI, leitura de env e resolucao de configuracao de `apps/agent/src/main.ts`
+- preservar precedencia `CLI > .env > defaults`
+
+### Slice 58 - extracao do supervisor de reconnect do agent
+
+- mover politica de retry/backoff/shutdown para um modulo dedicado
+- manter entrypoint do runtime como bootstrap fino
+
+### Slice 59 - tabela declarativa de rotas HTTP do server
+
+- substituir o `if` chain de `handleRequest` por um registro declarativo de rotas
+- manter rotas, status codes e payloads existentes
+
+### Slice 60 - separacao dos adapters HTTP do server
+
+- dividir `http-request-handlers.ts` em parsing de request, wiring de use cases e mapeamento de erros
+- reduzir acoplamento do adapter HTTP com repositorios concretos
+
+### Slice 61 - decomposicao do builder de artifacts
+
+- separar resolver de runtime portavel, rewrite de JS ESM, launcher templates e empacotadores por target
+- reduzir blast radius de mudancas no pipeline de build
+
+### Slice 62 - controller/hook da dashboard web
+
+- extrair polling, refresh, fetch inicial e estado global da dashboard para um hook dedicado
+- deixar `page.tsx` focado em composicao de UI
+
+### Slice 63 - hooks de acoes da dashboard web
+
+- extrair submit de comando, rename de device e approve de discovery para hooks/flows dedicados
+- manter comportamento atual do UI
+
+### Slice 64 - limpeza de duplicacao e codigo morto no web
+
+- remover duplicatas de hooks
+- reduzir `mock-data.ts` para fixtures realmente usadas
+- apagar exemplos e tipos nao suportados pelo MVP atual
+
+### Slice 65 - test kit compartilhado
+
+- criar helpers compartilhados para polling, portas temporarias e setup/teardown de server-agent
+- reduzir repeticao na suite de integracao
+
+### Slice 66 - fatiamento dos testes monoliticos
+
+- dividir specs muito grandes por comportamento/intencao
+- manter cobertura atual com arquivos menores e mais focados
 ## 19. Observação Final
 
 Este projeto deve evoluir como um sistema incremental, testado e funcional em todas as etapas.
