@@ -2,7 +2,7 @@
 
 Luna is a self-hosted virtual assistant for homelabs. It routes natural-language commands to registered devices (agents), executes local actions, and returns structured success/failure feedback to the web UI.
 
-Current status: MVP through **Slice 36** (server Docker distribution with embedded web) is complete as of **March 30, 2026**.
+Current status: MVP through **Slice 49** (agent npm CLI package) is complete as of **April 3, 2026**.
 
 ## Table of Contents
 
@@ -196,6 +196,20 @@ Generated artifact roots:
 
 - `dist-artifacts/server`
 - `dist-artifacts/agent`
+
+For end users running Luna Agent on a device, use the published package (no local build required):
+
+```bash
+npm exec --yes --package @vitorqf/luna-agent luna-agent -- \
+  --server-host 192.168.0.10 --server-port 4000
+```
+
+Optional global install:
+
+```bash
+npm install -g @vitorqf/luna-agent
+luna-agent --server-host 192.168.0.10 --server-port 4000
+```
 
 ## HTTP API
 

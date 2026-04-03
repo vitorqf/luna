@@ -579,6 +579,22 @@ Evitar:
 - cobertura de testes ampliada em `build-artifacts.unit.test.ts` para URL de runtime portavel e para uso do resolver customizado
 - smoke test do artifact do agent foi ajustado para isolamento de artefato em pasta temporaria e validacao do runtime empacotado via CLI
 
+### Slice 49 - pacote npm CLI do agent (Concluido)
+
+- novo builder dedicado de pacote npm CLI em `apps/agent/src/build-npm-package.ts`, gerando estrutura publicavel em `dist-packages/agent-cli`
+- pacote gerado publica o binario `luna-agent` como arquivo unico bundle CommonJS com shebang (`#!/usr/bin/env node`)
+- novo entrypoint de build `apps/agent/src/build-npm-package.main.ts` para execucao via script de monorepo
+- scripts adicionados no root: `build:package:agent-cli` (gera pacote) e `pack:package:agent-cli` (gera tarball `.tgz`)
+- testes unitarios adicionados em `apps/agent/test/build-npm-package.unit.test.ts` cobrindo metadata custom/default e estrutura de saida
+- documentacao atualizada em `README.md` e `RUN_LOCAL.md` com fluxo de build e empacotamento npm do agent
+
+### Slice 50 - docs de distribuicao do agent via pacote npm publicado (Concluido)
+
+- README.md passou a orientar usuarios finais a executar o agent via pacote publicado @vitorqf/luna-agent em vez de build local
+- RUN_LOCAL.md substituiu o fluxo de build/pack local do pacote por instalacao/execucao via npm (npm exec ou npm install -g)
+- comandos de build de artefato permanecem documentados apenas para contexto de desenvolvimento/manutencao do monorepo
+- validacao manual dos comandos documentados foi realizada durante o ajuste de documentacao
+
 ## 11. CritÈrios de Conclus„o por Slice
 
 Cada slice deve:
@@ -687,11 +703,11 @@ Para cada etapa:
 
 ## 18. Prioridade Atual
 
-Slice 48 concluido em 2026-04-03.
+Slice 50 concluido em 2026-04-03.
 
 Proximo passo recomendado:
 
--> Slice 49 - a definir
+-> Slice 51 - a definir
 
 ## 19. Observa√ß√£o Final
 

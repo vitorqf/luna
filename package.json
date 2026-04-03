@@ -15,6 +15,8 @@
     "build:web:embedded": "tsx apps/server/src/build-embedded-web.main.ts",
     "build:artifact:server": "npm run build && npm run build:web:embedded && tsx apps/server/src/build-artifacts.main.ts server",
     "build:artifact:agent": "npm run build && tsx apps/server/src/build-artifacts.main.ts agent",
+    "build:package:agent-cli": "tsx apps/agent/src/build-npm-package.main.ts",
+    "pack:package:agent-cli": "npm run build:package:agent-cli && npm pack ./dist-packages/agent-cli",
     "build:artifacts": "npm run build && npm run build:web:embedded && tsx apps/server/src/build-artifacts.main.ts server && tsx apps/server/src/build-artifacts.main.ts agent",
     "start:server": "tsx apps/server/src/main.ts",
     "start:agent": "tsx apps/agent/src/main.ts",

@@ -110,3 +110,19 @@ First package run:
 2. Send `Abrir Spotify no Notebook 2`.
 3. Check UI success feedback and agent log output.
 4. Restart the server and confirm approved devices plus command history are preserved.
+
+## 8. Run agent from npm package (recommended for users)
+
+Run without global install:
+
+```bash
+npm exec --yes --package @vitorqf/luna-agent luna-agent -- \
+  --server-host 192.168.0.10 --server-port 4000
+```
+
+Optional global install:
+
+```bash
+npm install -g @vitorqf/luna-agent
+luna-agent --server-host 192.168.0.10 --server-port 4000
+```
